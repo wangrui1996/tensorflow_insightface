@@ -17,3 +17,4 @@ faces_ms1m_arcface
 model_dir
 tmp
 data
+outputs_dir

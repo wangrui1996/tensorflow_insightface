@@ -19,7 +19,6 @@ def get_model_by_config(config):
     else:
         print("error")
         exit(0)
-        model = resnet.ResNet50V2(config, input_shape=input_shape, weights=None, layers_fn=call_fn)
     return model
 
 
@@ -229,7 +228,7 @@ def analyze_vars(variables, path):
     return total_size, total_bytes
 
 def load_bin(path, image_size):
-    print('reading %s' % path)
+    print('reading %s\r' % path)
     import pickle
     bins, issame_list = pickle.load(open(path, 'rb'), encoding='bytes')
     num = len(bins)
@@ -248,7 +247,7 @@ def load_bin(path, image_size):
         images[cnt] = img
         images_f[cnt] = img_f
         cnt += 1
-    print('done!')
+    print('done!\r')
     return (images, images_f, issame_list)
 
 
@@ -279,7 +278,7 @@ def run_embds(func, images, batch_size):
         image_batch = images[-left:]
         cur_embd = func([image_batch])[0]
         embds += list(cur_embd)
-    print('done!')
+    print('get features done!\r')
     return np.array(embds)
 
 

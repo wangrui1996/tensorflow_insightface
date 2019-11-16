@@ -18,10 +18,9 @@ batch_size: 512
 gpu_capacity: 64
 
 train_data: './data/faces_webface_112x112'
-val_data: {'agedb_30': './data/faces_webface_112x112/agedb_30.bin', 'lfw': './data/faces_webface_112x112/lfw.bin',
+val_data: {'agedb_30': 'faces_webface_112x112/agedb_30.bin', 'lfw': './data/faces_webface_112x112/lfw.bin',
            'cfp_ff': './data/faces_webface_112x112/cfp_ff.bin', 'cfp_fp': './data/faces_webface_112x112/cfp_fp.bin',
-           'calfw': './data/faces_webface_112x112/calfw.bin', 'cplfw': './data/faces_webface_112x112/cplfw.bin',
-           'vgg2_fp': './data/faces_webface_112x112/vgg2_fp.bin'}
+           'calfw': './data/faces_webface_112x112/calfw.bin', 'cplfw': './data/faces_webface_112x112/cplfw.bin'}
 
 output_dir: './model_dir/log'
 

@@ -1,7 +1,9 @@
+import os
+
 import tensorflow as tf
 from tensorflow.python.keras import layers
 from tensorflow.python.keras import models
-layers.ZeroPadding2D
+
 from libs.models.network_utils import get_fc1
 
 def Conv(x, config, num_filter=1, kernel_size=(1, 1), stride=(1, 1), padding="same", group=False, name=None, suffix=''):
@@ -71,6 +73,6 @@ def get_network(config):
 
     model = models.Model(img_input, fc1, name=config["network"])
     # Load weights.
-    if config["fine_weights"] != "None":
+    if os.path.exists(config["fine_weights"]):
         model.load_weights(config["fine_weights"])
     return model

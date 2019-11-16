@@ -10,41 +10,40 @@ net_act: "prelu"
 
 # blocks config
 net_blocks: [2,8,16,4]
+image_size: 112
+
+class_num: 85742
+embed_size: 256
 
 fc_type: "GDC"
 fc7_use_bias: True
 softmax_layer: "softmax_pred"
+loss_type: softmax
 ce_loss: False
 dataset_size: 490623
 
+epoch_num: 100
+step_per_epoch: 10000
 batch_size: 64
-gpu_capacity: 64
 
-train_data: './data/faces_webface_112x112'
-val_data: {'agedb_30': './data/faces_webface_112x112/agedb_30.bin', 'lfw': './data/faces_webface_112x112/lfw.bin',
-           'cfp_ff': './data/faces_webface_112x112/cfp_ff.bin', 'cfp_fp': './data/faces_webface_112x112/cfp_fp.bin',
-           'calfw': './data/faces_webface_112x112/calfw.bin', 'cplfw': './data/faces_webface_112x112/cplfw.bin'}
+# set number of gpu to train
+gpu_num: 1
 
-output_dir: './model_dir/log'
+# set traindata
+train_data: 'faces_webface_112x112'
+
+# set valid dataset
+val_data: {'agedb_30': 'agedb_30.bin', 'lfw': 'lfw.bin',
+           'cfp_ff': 'cfp_ff.bin', 'cfp_fp': 'cfp_fp.bin',
+           'calfw': 'calfw.bin', 'cplfw': 'cplfw.bin'}
+
+outputs_dir: './output_dir'
 
 fine_weights: "None"
 
-model_config: "model_dir/model.json"
-model_weights: "model_dir/weights.h5"
 
 
-# filter
 
-
-# model params
-backbone_type: resnet_v2_m_50
-loss_type: softmax
-out_type: E
-
-image_size: 112
-embd_size: 256
-class_num: 85742
-embed_num: 512
 
 
 # hyper params
@@ -55,16 +54,15 @@ logits_scale: 64.0
 logits_margin: 0.5
 momentum: 0.9
 
-
 # run params
 val_bn_train: False
 augment_flag: True
 augment_margin: 16
 
-gpu_num: 1
 
-epoch_num: 20
-step_per_epoch: 100000
+
+
+
 
 val_freq: 2000
 
