@@ -1,0 +1,71 @@
+# use
+network: "fmobilefacenet"
+input_shape: [112,112,3]
+
+# batchnorm momenu
+bn_mom: 0.9
+
+# activity
+net_act: "prelu"
+
+# blocks config
+net_blocks: [2,8,16,4]
+image_size: 112
+
+class_num: 85742
+embed_size: 256
+
+fc_type: "GDC"
+fc7_use_bias: True
+softmax_layer: "softmax_pred"
+loss_type: softmax
+ce_loss: False
+dataset_size: 5822653
+
+epoch_num: 100
+step_per_epoch: 10000
+batch_size: 84
+
+# set number of gpu to train
+gpu_num: 1
+
+# set traindata
+train_data: 'faces_emore'
+
+# set valid dataset
+val_data: {'agedb_30': 'agedb_30.bin', 'lfw': 'lfw.bin',
+           'cfp_ff': 'cfp_ff.bin', 'cfp_fp': 'cfp_fp.bin',
+           'calfw': 'calfw.bin', 'cplfw': 'cplfw.bin'}
+
+outputs_dir: './output_dir'
+
+fine_weights: "None"
+
+
+
+
+
+
+# hyper params
+bn_decay: 0.9
+keep_prob: 0.4
+weight_decay: !!float 5e-4
+logits_scale: 64.0
+logits_margin: 0.5
+momentum: 0.9
+
+# run params
+val_bn_train: False
+augment_flag: True
+augment_margin: 16
+
+
+
+
+
+
+val_freq: 2000
+
+# paths
+pretrained_model: '/data/hhd/InsightFace-tensorflow/output/20190120-133421/checkpoints/ckpt-m-140000'
+

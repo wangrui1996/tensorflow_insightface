@@ -15,6 +15,6 @@ def get_fc1(last_conv, config):
         x = Linear(last_conv, config, group=True, kernel_size=(7, 7), padding="valid",
                            stride=(1, 1), name="conv_6dw7_7")
         x = layers.Flatten()(x)
-        x = layers.Dense(config["embd_size"], name="pre_fc1")(x)
+        x = layers.Dense(config["embed_size"], name="pre_fc1")(x)
         x = layers.BatchNormalization(momentum=config["bn_mom"], epsilon=2e-5, name='fc1')(x)
     return x
