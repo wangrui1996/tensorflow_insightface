@@ -118,7 +118,8 @@ def get_network(config, y_true=None, is_train=False):
     fc1 = get_fc1(x, config)
 
     if not is_train:
-        model = models.Model(img_input, fc1, name=config["network"])
+        embeds = K.l2_normalize(fc1)
+        model = models.Model(img_input, embeds, name=config["network"])
         return model
 
     logits = get_call_func(y_true, fc1, config)
