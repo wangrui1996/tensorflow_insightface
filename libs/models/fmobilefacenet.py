@@ -67,13 +67,12 @@ def get_call_func(y_true, y_pred, config):
 def arcface_logits(embds, weights, labels, class_num, s, m):
     embds = tf.nn.l2_normalize(embds, axis=1, name='normed_embd')
     weights = tf.nn.l2_normalize(weights, axis=0)
-
-    cos_m = math.cos(m)
-    sin_m = math.sin(m)
+    cos_m = K.cos(m)
+    sin_m = K.sin(m)
 
     mm = sin_m * m
 
-    threshold = math.cos(math.pi - m)
+    threshold = K.cos(math.pi - m)
     cos_t = tf.matmul(embds, weights, name='cos_t')
 
     cos_t2 = tf.square(cos_t, name='cos_2')
@@ -90,7 +89,7 @@ def arcface_logits(embds, weights, labels, class_num, s, m):
     output = tf.add(tf.multiply(s_cos_t, inv_mask), tf.multiply(cos_mt_temp, mask), name='arcface_logits')
     return output
 
-def get_network(config, y_true):
+def get_network(config, y_true=None, is_train=False):
     blocks = config["net_blocks"]
 
     img_input = layers.Input(shape=config["input_shape"])
@@ -118,10 +117,12 @@ def get_network(config, y_true):
 
     fc1 = get_fc1(x, config)
 
+    if not is_train:
+        model = models.Model(img_input, fc1, name=config["network"])
+        return model
+
     logits = get_call_func(y_true, fc1, config)
 
     model = models.Model(img_input, logits, name=config["network"])
     # Load weights.
-    if os.path.exists(config["fine_weights"]):
-        model.load_weights(config["fine_weights"])
-    return model
+    return model, fc1

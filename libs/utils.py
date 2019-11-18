@@ -13,9 +13,9 @@ import numpy as np
 from sklearn.model_selection import KFold
 from scipy import interpolate
 
-def get_model_by_config(config, y_true):
+def get_model_by_config(config, y_true, is_train):
     if config["network"] == "fmobilefacenet":
-        model = fmobilefacenet.get_network(config,y_true)
+        return fmobilefacenet.get_network(config, y_true, is_train)
     else:
         print("error")
         exit(0)

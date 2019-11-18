@@ -39,25 +39,29 @@ class Trainer:
 
         print("image: ", self.train_images.get_shape())
         print("labels ", self.train_labels.get_shape())
-        with tf.device("/gpu:0"):
-            self.model = get_model_by_config(config,self.train_labels)
-            if os.path.exists(config["restore_weights"]):
-                self.model.load_weights(config["restore_weights"])
-            #logits = get_call_func(self.train_labels, self.model.output, config)
 
-        if config["gpu_num"] > 1:
+        def init_model():
+            model, embeds = get_model_by_config(config, self.train_labels, True)
+            if os.path.exists(config["restore_weights"]):
+                model.load_weights(config["restore_weights"])
+            return model, embeds
+                # logits = get_call_func(self.train_labels, self.model.output, config)
+
+        if config["gpu_num"] <= 1:
+            self.single_model, embeds = init_model()
+            self.parallel_model = self.single_model
+        else:
+            with tf.device("/cpu:0"):
+                self.single_model, embeds = init_model()
             print("Gpu num", config["gpu_num"])
-            import time
-            time.sleep(1)
-            self.model = keras.utils.multi_gpu_model(self.model, gpus=config["gpu_num"])
-        logits = self.model.output
+            self.parallel_model = keras.utils.multi_gpu_model(self.single_model, gpus=config["gpu_num"])
 
         def loss_func(_, __):
             from tensorflow.python.keras import layers
             import tensorflow.keras.backend as K
-            inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=self.train_labels)
+            inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.parallel_model.output, labels=self.train_labels)
             if config['ce_loss']:
-                body = layers.Softmax()(logits)
+                body = layers.Softmax()(self.parallel_model.output)
                 body = K.log(body)
                 _label = tf.one_hot(self.train_labels, depth=config["class_num"], on_value=-1.0, off_value=0.0)
                 body = body * _label
@@ -67,9 +71,10 @@ class Trainer:
                 train_loss = inference_loss + tf.compat.v1.losses.get_regularization_loss()
             return train_loss
 
-        self.train_op = keras.optimizers.RMSprop(lr=0.001)
+        train_op = keras.optimizers.RMSprop(lr=0.001)
        # self.model.compile(self.train_op,loss=self.inference_loss)
-        self.model.compile(self.train_op, loss=loss_func, metrics=["acc"])
+        self.parallel_model.compile(train_op, loss=loss_func, metrics=["acc"])
+        self.embeds = embeds
 
     def set_tf_config(self, num_workers):
         import json
@@ -99,14 +104,14 @@ class Trainer:
         counter = 0
         outter_class = self
         from tensorflow.python.keras import backend as K
-        self.func = K.function([self.model.input], [self.model.output])
+        self.func = K.function([self.single_model.input], [self.embeds])
         class LossAndErrorPrintingCallback(tf.keras.callbacks.Callback):
             def on_epoch_end(self, epoch, logs=None):
                 config = outter_class.config
                 acc = []
                 with open(config["log"], 'a') as f:
-                    epoch_model_path = os.path.join(config["output_dir"], "model_tmp.h5")
-                    outter_class.model.save(epoch_model_path)
+                    epoch_model_path = os.path.join(config["output_dir"], "tmp.h5")
+                    outter_class.single_model.save(epoch_model_path)
                     f.write('step: %d\n' % counter)
                     for k, v in config["val_data"].items():
                         imgs, imgs_f, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
@@ -123,25 +128,25 @@ class Trainer:
                     if acc > outter_class.best_acc:
 #                        saver_best.save(sess, os.path.join(self.model_dir, 'best-m'), global_step=counter)
                         outter_class.best_acc = acc
-                        outter_class.model.save(os.path.join(config["output_dir"], "{}_{}_model.h5".format(config["network"], config["train_data"])))
-                    outter_class.model.load_weights(epoch_model_path)
+                        outter_class.single_model.save(os.path.join(config["output_dir"], "{}_{}_model.h5".format(config["network"], config["train_data"])))
+                    outter_class.single_model.load_weights(epoch_model_path)
 
             def on_batch_end(self, batch, logs=None):
                 if batch % 1000 == 0:
                     config = outter_class.config
-                    json_config = outter_class.model.to_json()
+                    json_config = outter_class.single_model.to_json()
                     with open(os.path.join(config["output_dir"], "batch_model.json"), 'w') as json_file:
                         json_file.write(json_config)
                     # Save weights to disk
-                    outter_class.model.save_weights(os.path.join(config["output_dir"], "batch_weights.h5"))
+                    outter_class.single_model.save_weights(os.path.join(config["output_dir"], "batch_weights.h5"))
 
 
         # construct the training image generator for data augmentation
-        self.model.fit(self.train_images, self.train_labels, batch_size=config["batch_size"],
+        self.parallel_model.fit(self.train_images, self.train_labels, batch_size=config["batch_size"],
                        epochs=config["epoch_num"],
                        steps_per_epoch=config["step_per_epoch"],
                        #callbacks=[LossAndErrorPrintingCallback, tensorboard_callback])
-                       callbacks=[LossAndErrorPrintingCallback])
+                       callbacks=[LossAndErrorPrintingCallback()])
 
 if __name__ == '__main__':
     args = parse_args()
