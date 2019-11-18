@@ -39,21 +39,37 @@ class Trainer:
 
         print("image: ", self.train_images.get_shape())
         print("labels ", self.train_labels.get_shape())
-
-        self.model = get_model_by_config(config)
-        self.inference_loss, logits = get_call_func(self.train_labels, self.model.output, config)
+        with tf.device("/gpu:0"):
+            self.model = get_model_by_config(config,self.train_labels)
+            if os.path.exists(config["restore_weights"]):
+                self.model.load_weights(config["restore_weights"])
+            #logits = get_call_func(self.train_labels, self.model.output, config)
 
         if config["gpu_num"] > 1:
+            print("Gpu num", config["gpu_num"])
+            import time
+            time.sleep(1)
             self.model = keras.utils.multi_gpu_model(self.model, gpus=config["gpu_num"])
+        logits = self.model.output
 
-        def metrics_func(_, __):
-            pred = tf.argmax(logits, axis=-1, output_type=tf.int64)
-            train_acc = tf.reduce_mean(tf.cast(tf.equal(pred, self.train_labels), tf.float32))
-            return train_acc
+        def loss_func(_, __):
+            from tensorflow.python.keras import layers
+            import tensorflow.keras.backend as K
+            inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=self.train_labels)
+            if config['ce_loss']:
+                body = layers.Softmax()(logits)
+                body = K.log(body)
+                _label = tf.one_hot(self.train_labels, depth=config["class_num"], on_value=-1.0, off_value=0.0)
+                body = body * _label
+                ce_loss = K.sum(body) / config["batch_size"]
+                train_loss = inference_loss + ce_loss + tf.compat.v1.losses.get_regularization_loss()
+            else:
+                train_loss = inference_loss + tf.compat.v1.losses.get_regularization_loss()
+            return train_loss
 
-        self.train_op = keras.optimizers.RMSprop(lr=0.1)
+        self.train_op = keras.optimizers.RMSprop(lr=0.001)
        # self.model.compile(self.train_op,loss=self.inference_loss)
-        self.model.compile(self.train_op, loss=self.inference_loss, metrics=[metrics_func])
+        self.model.compile(self.train_op, loss=loss_func, metrics=["acc"])
 
     def set_tf_config(self, num_workers):
         import json
@@ -119,12 +135,13 @@ class Trainer:
                     # Save weights to disk
                     outter_class.model.save_weights(os.path.join(config["output_dir"], "batch_weights.h5"))
 
-        if os.path.exists(config["restore_weights"]):
-            self.model.load_weights(config["restore_weights"])
 
-        self.model.fit(self.train_images, self.train_labels, batch_size=config["batch_size"], epochs=config["epoch_num"],
+        # construct the training image generator for data augmentation
+        self.model.fit(self.train_images, self.train_labels, batch_size=config["batch_size"],
+                       epochs=config["epoch_num"],
                        steps_per_epoch=config["step_per_epoch"],
-                       callbacks=[LossAndErrorPrintingCallback()])
+                       #callbacks=[LossAndErrorPrintingCallback, tensorboard_callback])
+                       callbacks=[LossAndErrorPrintingCallback])
 
 if __name__ == '__main__':
     args = parse_args()

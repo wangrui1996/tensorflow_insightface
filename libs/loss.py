@@ -17,23 +17,7 @@ def get_call_func(y_true, y_pred, config):
                                 config['logits_margin'])
     else:
         raise ValueError('Invalid loss type.')
-
-
-
-    def loss_func(_, __):
-        inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_true)
-
-        if config['ce_loss']:
-            body = layers.Softmax()(logits)
-            body = K.log(body)
-            _label = tf.one_hot(y_true, depth=config["class_num"], on_value=-1.0, off_value=0.0)
-            body = body * _label
-            ce_loss = K.sum(body) / config["batch_size"]
-            train_loss = inference_loss + ce_loss + tf.compat.v1.losses.get_regularization_loss()
-        else:
-            train_loss = inference_loss + tf.compat.v1.losses.get_regularization_loss()
-        return train_loss
-    return loss_func, logits
+    return logits
 
 
 def arcface_logits(embds, weights, labels, class_num, s, m):
