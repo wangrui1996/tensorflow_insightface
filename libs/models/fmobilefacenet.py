@@ -66,6 +66,7 @@ def margin_softmax(embedding, y_true, config):
 
     s = config["loss_s"]
     nembedding = keras.layers.Lambda(lambda x: embedding*s)(embedding)
+    return nembedding
     fc7 = layers.Dense(units=config["class_num"], use_bias=False, kernel_regularizer=K.l2_normalize, name="cos0")(nembedding)
 
     if config["loss_m1"] == 1.0 and config["loss_m2"] == 0.0:
