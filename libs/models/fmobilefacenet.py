@@ -52,43 +52,42 @@ from tensorflow.python.keras import regularizers
 
 def get_call_func(y_true, y_pred, config):
     is_softmax = True
-    val = np.random.laplace(size=[config["embed_size"], config['class_num']])
-    weights = K.variable(value=val, name='classify_weight', dtype=tf.float32)
-    #y_pred = K.l2_normalize(x=y_pred)
-    y_pred = keras.layers.Lambda(lambda x: K.l2_normalize(x))(y_pred)
+
     if config['loss_type'] == "softmax":
         logits = layers.Dense(config['class_num'], use_bias=config["fc7_use_bias"], name="fc7")(y_pred)
-    elif config['loss_type'] == 'arcface':
-        logits = arcface_logits(y_pred, weights, y_true, config['class_num'], config['logits_scale'],
-                                config['logits_margin'])
+    elif config['loss_type'] == 'margin':
+        logits = margin_softmax(y_pred, y_true, config)
     else:
         raise ValueError('Invalid loss type.')
     return logits
 
 
-def arcface_logits(embds, weights, labels, class_num, s, m):
-    embds = tf.nn.l2_normalize(embds, axis=1, name='normed_embd')
-    weights = tf.nn.l2_normalize(weights, axis=0)
-    cos_m = K.cos(m)
-    sin_m = K.sin(m)
+def margin_softmax(embedding, y_true, config):
 
-    mm = sin_m * m
+    s = config["loss_s"]
 
-    threshold = K.cos(math.pi - m)
-    cos_t = tf.matmul(embds, weights, name='cos_t')
+    nembedding = embedding*s
+    fc7 = layers.Dense(units=config["class_num"], use_bias=False, kernel_regularizer=K.l2_normalize, name="cos0")(nembedding)
 
-    cos_t2 = tf.square(cos_t, name='cos_2')
-    sin_t2 = tf.subtract(1., cos_t2, name='sin_2')
-    sin_t = tf.sqrt(sin_t2, name='sin_t')
-    cos_mt = s * tf.subtract(tf.multiply(cos_t, cos_m), tf.multiply(sin_t, sin_m), name='cos_mt')
-    cond_v = cos_t - threshold
-    cond = tf.cast(tf.nn.relu(cond_v, name='if_else'), dtype=tf.bool)
-    keep_val = s*(cos_t - mm)
-    cos_mt_temp = tf.where(cond, cos_mt, keep_val)
-    mask = tf.one_hot(labels, depth=class_num, name='one_hot_mask')
-    inv_mask = tf.subtract(1., mask, name='inverse_mask')
-    s_cos_t = tf.multiply(s, cos_t, name='scalar_cos_t')
-    output = tf.add(tf.multiply(s_cos_t, inv_mask), tf.multiply(cos_mt_temp, mask), name='arcface_logits')
+    if config["loss_m1"] == 1.0 and config["loss_m2"] == 0.0:
+        s_m = s * config["loss_m3"]
+        gt_one_hot = tf.one_hot(y_true, depth=config["class_num"], on_value=s_m, off_value=0.0)
+        output = fc7 - gt_one_hot
+    else:
+        zy = fc7
+        cos_t = zy / s
+        t = tf.math.acos(cos_t)
+        if config["loss_m1"] != 1.0:
+            t = t * config["loss_m1"]
+        if config["loss_m2"] > 0.0:
+            t = t + config["loss_m2"]
+        body = K.cos(t)
+        if config["loss_m3"] > 0.0:
+            body = body - config["loss_m3"]
+        new_zy = body * s
+        bool_one_hot = tf.one_hot(y_true, depth=config["classes"], on_value=True, off_value=False)
+        output = tf.where(bool_one_hot, new_zy, fc7)
+
     return output
 
 def get_network(config, y_true=None, is_train=False):
@@ -119,12 +118,13 @@ def get_network(config, y_true=None, is_train=False):
 
     fc1 = get_fc1(x, config)
 
+    embeds = keras.layers.Lambda(lambda x: K.l2_normalize(x))(fc1)
+
     if not is_train:
-        embeds = K.l2_normalize(fc1)
         model = models.Model(img_input, embeds, name=config["network"])
         return model
 
-    logits = get_call_func(y_true, fc1, config)
+    logits = get_call_func(y_true, embeds, config)
 
     model = models.Model(img_input, logits, name=config["network"])
     # Load weights.
