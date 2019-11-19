@@ -67,7 +67,7 @@ def margin_softmax(embedding, y_true, config):
         return embedding*s
     s = config["loss_s"]
     #nembedding = keras.layers.Lambda(lambda x:  embedding*s)(embedding)
-    nembedding = keras.layers.Lambda(mu)(embedding)
+    nembedding = keras.layers.Lambda(mu)()
     return nembedding
     fc7 = layers.Dense(units=config["class_num"], use_bias=False, kernel_regularizer=K.l2_normalize, name="cos0")(nembedding)
 
