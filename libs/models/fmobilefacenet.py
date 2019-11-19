@@ -87,7 +87,7 @@ def margin_softmax(embedding, y_true, config):
             body = keras.layers.Lambda(lambda x: body-config["loss_m3"])(body)
         new_zy = keras.layers.Lambda(lambda x: body*s)(body)
         bool_one_hot = keras.layers.Lambda(lambda label: tf.one_hot(label, depth=config["class_num"], on_value=True, off_value=False))(y_true)
-        output = keras.layers.Lambda(lambda con,tv,fv: tf.where(con, tv, fv))([bool_one_hot, new_zy, fc7])
+        output = keras.layers.Lambda(lambda con,tv,fv: tf.where(con, tv, fv))(bool_one_hot, new_zy, fc7)
 
 
     return output
