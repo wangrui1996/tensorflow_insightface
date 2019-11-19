@@ -18,13 +18,20 @@ embed_size: 256
 fc_type: "GDC"
 fc7_use_bias: True
 softmax_layer: "softmax_pred"
-loss_type: softmax
+loss_type: margin
+# arcface
+loss_s: 64.0
+loss_m1: 1.0
+loss_m2: 0.5
+loss_m3: 0.0
+
+
 ce_loss: False
 dataset_size: 5822653
 
 epoch_num: 100
 step_per_epoch: 10000
-batch_size: 160
+batch_size: 10
 
 # set number of gpu to train
 gpu_num: 1
