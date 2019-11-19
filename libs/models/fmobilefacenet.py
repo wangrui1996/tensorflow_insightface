@@ -63,9 +63,10 @@ def get_call_func(y_true, y_pred, config):
 
 
 def margin_softmax(embedding, y_true, config):
-    def mu(x):
-        return embedding*s
+
     s = config["loss_s"]
+    def mu(x):
+        return x*s
     #nembedding = keras.layers.Lambda(lambda x:  embedding*s)(embedding)
     nembedding = keras.layers.Lambda(mu)(embedding)
     return nembedding
