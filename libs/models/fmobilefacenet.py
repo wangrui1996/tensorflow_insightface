@@ -64,7 +64,7 @@ def get_call_func(y_true, y_pred, config):
 
 def margin_softmax(embedding, y_true, config):
     import functools
-    def multi_func(x, ratio):
+    def multi_func(ratio,x):
         return x*ratio
     s = config["loss_s"]
     #def mu(x):
