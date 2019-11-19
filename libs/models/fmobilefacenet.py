@@ -63,12 +63,14 @@ def get_call_func(y_true, y_pred, config):
 
 
 def margin_softmax(embedding, y_true, config):
-
+    import functools
+    def multi_func(x, ratio):
+        return x*ratio
     s = config["loss_s"]
     #def mu(x):
     #    return x*s
-    nembedding = keras.layers.Lambda(lambda x:  embedding*s)(embedding)
-    #nembedding = keras.layers.Lambda(mu)(embedding)
+    #nembedding = keras.layers.Lambda(lambda x:  embedding*s)(embedding)
+    nembedding = keras.layers.Lambda(functools.partial(multi_func, s))(embedding)
     return nembedding
     fc7 = layers.Dense(units=config["class_num"], use_bias=False, kernel_regularizer=K.l2_normalize, name="cos0")(nembedding)
 
