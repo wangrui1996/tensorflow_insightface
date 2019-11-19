@@ -68,31 +68,38 @@ def margin_softmax(embedding, y_true, config):
         return x*s
     #nembedding = keras.layers.Lambda(lambda x:  embedding*s)(embedding)
     nembedding = keras.layers.Lambda(mul_s)(embedding)
-    return nembedding
     fc7 = layers.Dense(units=config["class_num"], use_bias=False, kernel_regularizer=K.l2_normalize, name="cos0")(nembedding)
 
     if config["loss_m1"] == 1.0 and config["loss_m2"] == 0.0:
         s_m = s*config["loss_m3"]
         gt_one_hot = keras.layers.Lambda(
             lambda label: tf.one_hot(label, depth=config["class_num"], on_value=s_m, off_value=0.0))(y_true)
-
-        output = keras.layers.Lambda(lambda x, y: x-y)([fc7, gt_one_hot])
+        def sub_label(x):
+            return x-gt_one_hot
+        output = keras.layers.Lambda(sub_label)(fc7)
     else:
         zy = fc7
-        cos_t = keras.layers.Lambda(lambda x: x/s)(zy)
+        def div_s(x):
+            return x/s
+        cos_t = keras.layers.Lambda(div_s)(zy)
         t = keras.layers.Lambda(lambda x: tf.math.acos(x))(cos_t)
         if config["loss_m1"] != 1.0:
-            t = keras.layers.Lambda(lambda x: x*config["loss_m1"])(t)
+            def mul_m1(x):
+                return x*config["loss_m1"]
+            t = keras.layers.Lambda(mul_m1)(t)
         if config["loss_m2"] > 0.0:
-            t = keras.layers.Lambda(lambda x: x + config["loss_m2"])(t)
+            def add_m2(x):
+                return x+config["loss_m2"]
+            t = keras.layers.Lambda(add_m2)(t)
         body = keras.layers.Lambda(lambda x: K.cos(x))(t)
         if config["loss_m3"] > 0.0:
-            body = keras.layers.Lambda(lambda x: body-config["loss_m3"])(body)
-        new_zy = keras.layers.Lambda(lambda x: body*s)(body)
+            def sub_m3(x):
+                return x - config["loss_m3"]
+            body = keras.layers.Lambda(sub_m3)(body)
+
+        new_zy = keras.layers.Lambda(mul_s)(body)
         bool_one_hot = keras.layers.Lambda(lambda label: tf.one_hot(label, depth=config["class_num"], on_value=True, off_value=False))(y_true)
         output = keras.layers.Lambda(lambda con: tf.where(con, new_zy, fc7))(bool_one_hot)
-
-
     return output
 
 def get_network(config, y_true=None, is_train=False):
