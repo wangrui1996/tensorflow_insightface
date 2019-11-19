@@ -21,7 +21,7 @@ softmax_layer: "softmax_pred"
 loss_type: softmax
 
 # arcface
-loss_1: 64.0
+loss_s: 64.0
 loss_m1: 1.0
 loss_m2: 0.5
 loss_m3: 0.0

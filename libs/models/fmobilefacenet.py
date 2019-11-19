@@ -66,16 +66,16 @@ def margin_softmax(embedding, y_true, config):
 
     s = config["loss_s"]
 
-    nembedding = embedding*s
+    nembedding = layers.Multiply()([embedding,s])
     fc7 = layers.Dense(units=config["class_num"], use_bias=False, kernel_regularizer=K.l2_normalize, name="cos0")(nembedding)
 
     if config["loss_m1"] == 1.0 and config["loss_m2"] == 0.0:
-        s_m = s * config["loss_m3"]
+        s_m = layers.Multiply()([s, config["loss_m3"]])
         gt_one_hot = tf.one_hot(y_true, depth=config["class_num"], on_value=s_m, off_value=0.0)
-        output = fc7 - gt_one_hot
+        output = layers.Subtract()([fc7, gt_one_hot])
     else:
         zy = fc7
-        cos_t = zy / s
+        cos_t = layers.Multiply()([zy, 1/s])
         t = tf.math.acos(cos_t)
         if config["loss_m1"] != 1.0:
             t = t * config["loss_m1"]
@@ -85,7 +85,7 @@ def margin_softmax(embedding, y_true, config):
         if config["loss_m3"] > 0.0:
             body = body - config["loss_m3"]
         new_zy = body * s
-        bool_one_hot = tf.one_hot(y_true, depth=config["classes"], on_value=True, off_value=False)
+        bool_one_hot = tf.one_hot(y_true, depth=config["class_num"], on_value=True, off_value=False)
         output = tf.where(bool_one_hot, new_zy, fc7)
 
     return output
