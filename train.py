@@ -31,8 +31,6 @@ class Trainer:
 
 
     def build(self):
-        from keras_preprocessing.image import ImageDataGenerator
-        ImageDataGenerator.flow_from_directory()
         config = self.config
         cid = ImageData(img_size=config["image_size"], augment_flag=config['augment_flag'], augment_margin=config['augment_margin'])
         train_dataset = cid.read_TFRecord(os.path.join("./data", config['train_data'])).shuffle(10000).repeat().batch(config["batch_size"])

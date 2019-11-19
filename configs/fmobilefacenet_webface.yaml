@@ -24,10 +24,10 @@ dataset_size: 490623
 
 epoch_num: 100
 step_per_epoch: 10000
-batch_size: 64
+batch_size: 160
 
 # set number of gpu to train
-gpu_num: 1
+gpu_num: 2
 
 # set traindata
 train_data: 'faces_webface_112x112'

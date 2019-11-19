@@ -54,6 +54,8 @@ def get_call_func(y_true, y_pred, config):
     is_softmax = True
     val = np.random.laplace(size=[config["embed_size"], config['class_num']])
     weights = K.variable(value=val, name='classify_weight', dtype=tf.float32)
+    #y_pred = K.l2_normalize(x=y_pred)
+    y_pred = keras.layers.Lambda(lambda x: K.l2_normalize(x))(y_pred)
     if config['loss_type'] == "softmax":
         logits = layers.Dense(config['class_num'], use_bias=config["fc7_use_bias"], name="fc7")(y_pred)
     elif config['loss_type'] == 'arcface':
