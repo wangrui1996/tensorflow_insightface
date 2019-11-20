@@ -37,15 +37,51 @@ def augmentation(image, aug_img_size):
     image = tf.image.random_brightness(image, 0.3)
     return image
 
-def from_mxnet_add_record(queue, img_size=None, writer_path=None, total=None):
-    writer = tf.python_io.TFRecordWriter(writer_path, options=None)
+
+def from_mxnet_add_images(queue, img_size=None, writer_path=None, total=None):
+    global cnt, Fcnt, label_idx, done
     while True:
-        global done
         import mxnet as mx
         while True:
             ok = True
             try:
-                img_info = queue.get(timeout=30)
+                img_info, idx = queue.get(timeout=5)
+            except:
+                print("Can not read from")
+                ok = False
+            with lock:
+                if done:
+                    return
+                else:
+                    if not ok:
+                        Fcnt = Fcnt + 1
+                    else:
+                        break
+        header, img = mx.recordio.unpack_img(img_info)
+        img = img.astype(np.uint8)
+        if img_size:
+            img = cv2.resize(img, (img_size, img_size))
+        label = int(header.label)
+        image_save_dir = os.path.join(writer_path, str(label))
+        if not os.path.exists(image_save_dir):
+            os.mkdir(image_save_dir)
+        cv2.imwrite(os.path.join(image_save_dir, "{}.jpg".format(idx)), img)
+        with lock:
+            if label not in label_idx:
+                label_idx.append(label)
+            cnt = cnt + 1
+            print('%d/%d' % (cnt, total), end='\r')
+
+
+def from_mxnet_add_record(queue, img_size=None, writer_path=None, total=None):
+    global cnt, Fcnt, label_idx, done
+    writer = tf.python_io.TFRecordWriter(writer_path, options=None)
+    while True:
+        import mxnet as mx
+        while True:
+            ok = True
+            try:
+                img_info = queue.get(timeout=5)
             except:
                 print("Can not read from")
                 ok = False
@@ -56,7 +92,8 @@ def from_mxnet_add_record(queue, img_size=None, writer_path=None, total=None):
                 else:
                     if not ok:
                         Fcnt = Fcnt + 1
-                    break
+                    else:
+                        break
         header, img = mx.recordio.unpack_img(img_info)
         img = img.astype(np.uint8)
         if img_size:
@@ -78,15 +115,11 @@ def from_mxnet_add_record(queue, img_size=None, writer_path=None, total=None):
 
         writer.write(tf_serialized)
         with lock:
-            global cnt
-            global label_idx
+
             if label not in label_idx:
                 label_idx.append(label)
             cnt = cnt + 1
             print('%d/%d' % (cnt, total), end='\r') 
-            if done:
-                writer.close()
-                return
 
 
 def from_folders_add_record(queue, img_size, writer_path, total):
@@ -161,6 +194,71 @@ class ImageData:
         img = tf.cast(img, tf.float32) / 127.5 - 1
 
         return img
+
+    def write_images_from_mxrec(self, read_dir, write_dir, thread_num=os.cpu_count()):
+        import mxnet as mx
+        print('write tfrecord from mxrec...')
+        idx_path = os.path.join(read_dir, 'train.idx')
+        bin_path = os.path.join(read_dir, 'train.rec')
+        imgrec = mx.recordio.MXIndexedRecordIO(idx_path, bin_path, 'r')
+        s = imgrec.read_idx(0)
+        header, _ = mx.recordio.unpack(s)
+        imgidx = list(range(1, int(header.label[0])))
+
+        total = len(imgidx)
+        executor = ThreadPoolExecutor(thread_num)
+        fs = []
+
+        from multiprocessing import Queue
+        import threading
+        BUF_SIZE = thread_num*2
+        queue = Queue(BUF_SIZE)
+
+        class ProducerThread(threading.Thread):
+            def __init__(self, imgrec, imgidx, queue):
+                super(ProducerThread, self).__init__()
+                self.queue = queue
+                self.imgrec = imgrec
+                self.imgidx = imgidx
+            def run(self):
+                global done
+                for i in imgidx:
+                    while self.queue.full():
+                        if done:
+                            return
+                        pass
+                    ok = True
+                    try:
+                        img_info = imgrec.read_idx(i)
+                    except Exception as e:
+                        ok = False
+                    if ok:
+                        queue.put((img_info, i))
+                    else:
+                        print("Can not read:{}, Exception: {}".format(i, e.with_traceback()))
+                        continue
+                while not self.queue.empty():
+                    pass
+                with lock:
+                    done = True
+
+        p = ProducerThread(imgrec, imgidx, queue)
+        p.start()
+
+        for id in range(thread_num):
+            img_size = self.img_size
+            print("Write data into {}".format(write_dir))
+            fs.append(
+                executor.submit(from_mxnet_add_images, queue, img_size, write_dir,
+                                total))
+
+        [print(f.result()) for f in fs]
+
+        executor.shutdown(wait=True)
+        global cnt, Fcnt, label_idx
+        print('done![%d:%d], Failed num[%d], Class num[%d]' % (cnt, total, Fcnt, len(label_idx)))
+
+
 
     def write_tfrecord_from_folders(self, read_dir, write_dir, thread_num=os.cpu_count()):
         print('write tfrecord from folders...')
