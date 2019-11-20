@@ -8,7 +8,6 @@ import tensorflow as tf
 from tensorflow.python import keras as keras
 from datetime import datetime
 
-from libs.loss import get_call_func
 from libs.datatool import ImageData
 from libs.utils import get_model_by_config, check_folders, load_bin, evaluate, get_port, run_embds
 
@@ -32,48 +31,37 @@ class Trainer:
 
     def build(self):
         config = self.config
-        cid = ImageData(img_size=config["image_size"], augment_flag=config['augment_flag'], augment_margin=config['augment_margin'])
-        train_dataset = cid.read_TFRecord(os.path.join("./data", config['train_data'])).shuffle(10000).repeat().batch(config["batch_size"])
-        train_iterator = train_dataset.make_one_shot_iterator()
-        self.train_images, self.train_labels = train_iterator.get_next()
+#        cid = ImageData(img_size=config["image_size"], augment_flag=config['augment_flag'], augment_margin=config['augment_margin'])
+#        train_dataset = cid.read_TFRecord(os.path.join("./data", config['train_data'])).shuffle(10000).repeat().batch(config["batch_size"])
+#        train_iterator = train_dataset.make_one_shot_iterator()
+#        self.train_images, self.train_labels = train_iterator.get_next()
 
-        print("image: ", self.train_images.get_shape())
-        print("labels ", self.train_labels.get_shape())
-
+#        print("image: ", self.train_images.get_shape())
+#        print("labels ", self.train_labels.get_shape())
+        image_data = ImageData()
+        data_gen = image_data.generator(config)
+        config["dataset_size"] = data_gen.samples
+        config["class_num"] = data_gen.num_classes
+        self.data_gen = data_gen
         def init_model():
-            model, embeds = get_model_by_config(config, self.train_labels, True)
+            model = get_model_by_config(config, True)
             if os.path.exists(config["restore_weights"]):
                 model.load_weights(config["restore_weights"])
-            return model, embeds
+            return model
                 # logits = get_call_func(self.train_labels, self.model.output, config)
 
         if config["gpu_num"] <= 1:
-            self.single_model, embeds = init_model()
+            self.single_model = init_model()
             self.parallel_model = self.single_model
         else:
-            self.single_model, embeds = init_model()
+            self.single_model = init_model()
             print("Gpu num", config["gpu_num"])
             self.parallel_model = keras.utils.multi_gpu_model(self.single_model, gpus=config["gpu_num"])
 
-        def loss_func(_, __):
-            from tensorflow.python.keras import layers
-            import tensorflow.keras.backend as K
-            inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.parallel_model.output, labels=self.train_labels)
-            if config['ce_loss']:
-                body = layers.Softmax()(self.parallel_model.output)
-                body = K.log(body)
-                _label = tf.one_hot(self.train_labels, depth=config["class_num"], on_value=-1.0, off_value=0.0)
-                body = body * _label
-                ce_loss = K.sum(body) / config["batch_size"]
-                train_loss = inference_loss + ce_loss + tf.compat.v1.losses.get_regularization_loss()
-            else:
-                train_loss = inference_loss + tf.compat.v1.losses.get_regularization_loss()
-            return train_loss
-
         train_op = keras.optimizers.RMSprop(lr=0.001)
+        from libs.loss import generate_loss_func
        # self.model.compile(self.train_op,loss=self.inference_loss)
-        self.parallel_model.compile(train_op, loss=loss_func, metrics=["acc"])
-        self.embeds = embeds
+        self.parallel_model.compile(train_op, loss=generate_loss_func(config), metrics=["acc"])
 
     def set_tf_config(self, num_workers):
         import json
@@ -103,7 +91,7 @@ class Trainer:
         counter = 0
         outter_class = self
         from tensorflow.python.keras import backend as K
-        self.func = K.function([self.single_model.input], [self.embeds])
+        self.func = K.function([self.single_model.input], [self.single_model.output])
         class LossAndErrorPrintingCallback(tf.keras.callbacks.Callback):
             def on_epoch_end(self, epoch, logs=None):
                 config = outter_class.config
@@ -114,8 +102,8 @@ class Trainer:
                     f.write('step: %d\n' % counter)
                     for k, v in config["val_data"].items():
                         imgs, imgs_f, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
-                        embds = run_embds(outter_class.func, imgs, config["batch_size"])
-                        embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"])
+                        embds = run_embds(outter_class.func, imgs, config["batch_size"]//config["gpu_num"])
+                        embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpu_num"])
                         embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
                         tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds, issame, far_target=1e-3, distance_metric=0)
                         f.write('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (
@@ -140,12 +128,25 @@ class Trainer:
                     outter_class.single_model.save_weights(os.path.join(config["output_dir"], "batch_weights.h5"))
 
 
+
+
+        workers = int(os.cpu_count() // 1.5)
+        os.cpu_count()
+        self.parallel_model.fit_generator(
+            self.data_gen,
+            epochs=config["epoch_num"],
+            steps_per_epoch=config["step_per_epoch"],
+            callbacks=[LossAndErrorPrintingCallback()],
+            max_queue_size=workers*2,
+            workers=workers,
+            use_multiprocessing=True,
+        )
         # construct the training image generator for data augmentation
-        self.parallel_model.fit(self.train_images, self.train_labels, batch_size=config["batch_size"],
-                       epochs=config["epoch_num"],
-                       steps_per_epoch=config["step_per_epoch"],
-                       #callbacks=[LossAndErrorPrintingCallback, tensorboard_callback])
-                       callbacks=[LossAndErrorPrintingCallback()])
+        #self.parallel_model.fit(self.train_images, self.train_labels, batch_size=config["batch_size"],
+        #               epochs=config["epoch_num"],
+        #               steps_per_epoch=config["step_per_epoch"],
+        #               #callbacks=[LossAndErrorPrintingCallback, tensorboard_callback])
+        #               callbacks=[LossAndErrorPrintingCallback()])
 
 if __name__ == '__main__':
     args = parse_args()

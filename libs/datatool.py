@@ -410,3 +410,12 @@ class ImageData:
     def read_TFRecord(self, tfrecord_dir):
         dataset = tf.data.TFRecordDataset(self.get_Filenames_to_list(tfrecord_dir), buffer_size=256 << 20)
         return dataset.map(self.parse_function, num_parallel_calls=8)
+
+    def generator(self, config):
+        from tensorflow.python import keras
+        data_gen = keras.preprocessing.image.ImageDataGenerator()
+        return data_gen.flow_from_directory(
+            os.path.join("data", config["train_data"], "images"),
+            target_size=(config["input_shape"][0], config["input_shape"][1]),
+            class_mode='sparse',
+            batch_size=config["batch_size"])
