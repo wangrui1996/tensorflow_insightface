@@ -8,14 +8,9 @@ from tensorflow.python.keras import regularizers
 
 def generate_loss_func(config):
     def loss_func(y_true, y_pred):
-
-
-
-
         if config['loss_type'] == "softmax":
             logits = keras.layers.Dense(config['class_num'], use_bias=config["fc7_use_bias"], name="fc7")(y_pred)
         elif config['loss_type'] == 'margin':
-            y_true = None
             logits = margin_softmax(y_pred, y_true, config)
         else:
             raise ValueError('Invalid loss type.')
@@ -71,18 +66,11 @@ def margin_softmax(embedding, y_true, config):
             body = keras.layers.Lambda(sub_m3)(body)
 
         new_zy = keras.layers.Lambda(mul_s)(body)
-        def bool_one_hot_func(ip):
-            return K.one_hot(ip[0], ip[1])
-            #return tf.one_hot(ip[0], depth=ip[1])
 
-        #bool_one_hot = keras.layers.Lambda(lambda x,y: K.one_hot(x,y))(y_true, config["class_num"])
-        bool_one_hot = np.ones((config["batch_size"], config["class_num"]))
-        #bool_one_hot = K.one_hot(y_true, config["class_num"])
-        #bool_one_hot = keras.layers.Lambda(bool_one_hot_func)([y_true, config["class_num"]])
-        def where_func(ip):
-            x = tf.cast(ip[0], dtype=tf.bool)
-            return tf.where(x, ip[1], ip[2])
-        output = keras.layers.Lambda(where_func)([bool_one_hot, new_zy, fc7])
+        bool_one_hot = K.cast(K.reshape(y_true, (-1, config["class_num"])), dtype=tf.bool)
+
+        output = tf.where(bool_one_hot, new_zy, fc7)
+        print("outpu shape", output.shape)
         print("finished ..")
     return output
 

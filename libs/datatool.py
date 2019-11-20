@@ -417,5 +417,7 @@ class ImageData:
         return data_gen.flow_from_directory(
             os.path.join("data", config["train_data"], "images"),
             target_size=(config["input_shape"][0], config["input_shape"][1]),
-            class_mode='sparse',
+            class_mode='categorical',
+            #class_mode="binary",
+            #class_mode="sparse",
             batch_size=config["batch_size"])

@@ -132,7 +132,6 @@ class Trainer:
 
 
         workers = int(os.cpu_count() // 1.5)
-        os.cpu_count()
         self.parallel_model.fit_generator(
             self.data_gen,
             epochs=config["epoch_num"],
