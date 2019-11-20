@@ -22,11 +22,16 @@ class Trainer:
         config["output_dir"] = os.path.join(config['outputs_dir'], datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S'))
         check_folders([config["output_dir"]])
         config["log"] = os.path.join(config["output_dir"], 'log.txt')
+        image_data = ImageData()
+        data_gen = image_data.generator(config)
+        config["dataset_size"] = data_gen.samples
+        config["class_num"] = data_gen.num_classes
         if config["dataset_size"] != None:
             config["step_per_epoch"] = math.ceil(config["dataset_size"]/config["batch_size"])
         with open(os.path.join(config["output_dir"], 'config.yaml'), 'w') as f:
             f.write(yaml.dump(config))
         self.config = config
+        self.data_gen = data_gen
 
 
     def build(self):
@@ -38,11 +43,7 @@ class Trainer:
 
 #        print("image: ", self.train_images.get_shape())
 #        print("labels ", self.train_labels.get_shape())
-        image_data = ImageData()
-        data_gen = image_data.generator(config)
-        config["dataset_size"] = data_gen.samples
-        config["class_num"] = data_gen.num_classes
-        self.data_gen = data_gen
+
         def init_model():
             model = get_model_by_config(config, True)
             if os.path.exists(config["restore_weights"]):
