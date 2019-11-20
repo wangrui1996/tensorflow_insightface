@@ -64,7 +64,10 @@ def from_mxnet_add_images(queue, img_size=None, writer_path=None, total=None):
         label = int(header.label)
         image_save_dir = os.path.join(writer_path, str(label))
         if not os.path.exists(image_save_dir):
-            os.mkdir(image_save_dir)
+            try:
+                os.mkdir(image_save_dir)
+            except OSError as e:
+                print(e.strerror)
         cv2.imwrite(os.path.join(image_save_dir, "{}.jpg".format(idx)), img)
         with lock:
             if label not in label_idx:
