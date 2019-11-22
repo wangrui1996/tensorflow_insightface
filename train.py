@@ -23,7 +23,9 @@ class Trainer:
         check_folders([config["output_dir"]])
         config["log"] = os.path.join(config["output_dir"], 'log.txt')
         image_data = ImageData()
+        print("starting to create data generator")
         data_gen = image_data.generator(config)
+        print("Done ...")
         config["dataset_size"] = data_gen.samples
         config["class_num"] = data_gen.num_classes
         if config["dataset_size"] != None:
@@ -139,7 +141,7 @@ class Trainer:
             callbacks=[LossAndErrorPrintingCallback()],
             max_queue_size=workers*2,
             workers=workers,
-            use_multiprocessing=True,
+            use_multiprocessing=False,
         )
         # construct the training image generator for data augmentation
         #self.parallel_model.fit(self.train_images, self.train_labels, batch_size=config["batch_size"],
@@ -151,7 +153,7 @@ class Trainer:
 if __name__ == '__main__':
     args = parse_args()
 
-    config = yaml.load(open(args.config_path))
+    config = yaml.load(open(args.config_path), Loader=yaml.FullLoader)
     weights_path = args.restore_weights
     config["restore_weights"] = weights_path
 
