@@ -53,18 +53,18 @@ class Trainer:
             return model
                 # logits = get_call_func(self.train_labels, self.model.output, config)
 
-        if config["gpu_num"] <= 1:
+        if config["gpus"] <= 1:
             self.single_model = init_model()
             self.parallel_model = self.single_model
         else:
             self.single_model = init_model()
-            print("Gpu num", config["gpu_num"])
-            self.parallel_model = keras.utils.multi_gpu_model(self.single_model, gpus=config["gpu_num"])
+            print("Gpu num", config["gpus"])
+            self.parallel_model = keras.utils.multi_gpu_model(self.single_model, gpus=config["gpus"])
 
-        train_op = keras.optimizers.RMSprop(lr=0.001)
-        from libs.loss import generate_loss_func
+        train_op = keras.optimizers.RMSprop(lr=config["base_lr"])
+        from libs.loss import LOSS_FUNC
        # self.model.compile(self.train_op,loss=self.inference_loss)
-        self.parallel_model.compile(train_op, loss=generate_loss_func(config), metrics=["acc"])
+        self.parallel_model.compile(train_op, loss=LOSS_FUNC(config), metrics=["acc"])
 
     def set_tf_config(self, num_workers):
         import json
@@ -105,8 +105,8 @@ class Trainer:
                     f.write('step: %d\n' % counter)
                     for k, v in config["val_data"].items():
                         imgs, imgs_f, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
-                        embds = run_embds(outter_class.func, imgs, config["batch_size"]//config["gpu_num"])
-                        embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpu_num"])
+                        embds = run_embds(outter_class.func, imgs, config["batch_size"]//config["gpus"])
+                        embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
                         embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
                         tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds, issame, far_target=1e-3, distance_metric=0)
                         f.write('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (

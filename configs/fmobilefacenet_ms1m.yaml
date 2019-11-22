@@ -29,13 +29,13 @@ loss_m3: 0.0
 ce_loss: False
 dataset_size: 5822653
 
+base_lr: 0.001
 epoch_num: 100
 step_per_epoch: 10000
-batch_size: 10
+batch_size: 64
 
 # set number of gpu to train
-gpu_num: 1
-
+gpus: 1
 # set traindata
 train_data: 'faces_emore'
 
