@@ -184,7 +184,7 @@ def margin_softmax(embedding, y_true, config):
         bool_one_hot = K.cast(K.reshape(y_true, (-1, config["class_num"])), dtype=tf.bool)
 
         output = tf.where(bool_one_hot, new_zy, fc7)
-        print("outpu shape", output.shape)
+        print("output shape", output.shape)
         print("finished ..")
     return output
 
