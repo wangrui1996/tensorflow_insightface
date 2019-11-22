@@ -29,7 +29,7 @@ loss_m3: 0.0
 ce_loss: False
 dataset_size: 5822653
 
-base_lr: 0.001
+base_lr: 0.1
 epoch_num: 100
 step_per_epoch: 10000
 batch_size: 64
@@ -60,19 +60,4 @@ weight_decay: !!float 5e-4
 logits_scale: 64.0
 logits_margin: 0.5
 momentum: 0.9
-
-# run params
-val_bn_train: False
-augment_flag: True
-augment_margin: 16
-
-
-
-
-
-
-val_freq: 2000
-
-# paths
-pretrained_model: '/data/hhd/InsightFace-tensorflow/output/20190120-133421/checkpoints/ckpt-m-140000'
 
