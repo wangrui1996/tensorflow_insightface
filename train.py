@@ -19,7 +19,7 @@ def parse_args():
 
 class Trainer:
     def __init__(self, config):
-        config["output_dir"] = os.path.join(config['outputs_dir'], datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S'))
+        config["output_dir"] = os.path.join(config['outputs_dir'], config["network"], config["train_data"], config["loss_type"],datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S'))
         check_folders([config["output_dir"]])
         config["log"] = os.path.join(config["output_dir"], 'log.txt')
         image_data = ImageData()
