@@ -4,7 +4,7 @@ import numpy as np
 
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import layers
-import tensorflow.keras.backend as K
+from tensorflow.python.keras import backend as K
 from tensorflow.python import keras
 from tensorflow.python.ops import array_ops
 from tensorflow.python.keras import regularizers
@@ -18,11 +18,16 @@ def _normalize_device_name(name):
   return name
 
 def generate_loss_func(config):
+    from tensorflow.python.util.tf_export import keras_export
     if config["gpus"] <= 1:
-        def _loss(y_true, y_pred):
-            return loss_inference(y_true, y_pred, config)
+        @keras_export("keras.losses.custom_loss")
+        def _loss(y_true, y_pred, from_logits=False,
+                             label_smoothing=0):
+            return loss_inference(y_true, y_pred, from_logits,
+                             label_smoothing,config)
         return _loss
     else:
+        @keras_export("keras.losses.custom_loss")
         def _multi_gpu_loss(y_true, y_pred):
             from tensorflow.python.keras.layers.core import Lambda
             gpus = config["gpus"]
@@ -119,16 +124,26 @@ def generate_loss_func(config):
         return _multi_gpu_loss
 
 
-def loss_inference(y_true, y_pred, config):
+def loss_inference(y_true, y_pred, from_logits=False, label_smoothing=0, config=None):
     if config['loss_type'] == "softmax":
-        logits = keras.layers.Dense(config['class_num'], use_bias=config["fc7_use_bias"], name="fc7")(y_pred)
+        pass
     elif config['loss_type'] == 'margin':
         logits = margin_softmax(y_pred, y_true, config)
     else:
         raise ValueError('Invalid loss type.')
-    from tensorflow.python.keras import layers
-    main_loss = tf.nn.softmax_cross_entropy_with_logits(
-        logits=logits, labels=y_true)
+    from tensorflow.python.ops import math_ops
+    from tensorflow.python.framework import smart_cond
+    y_pred = ops.convert_to_tensor(y_pred)
+    y_true = math_ops.cast(y_true, y_pred.dtype)
+    label_smoothing = ops.convert_to_tensor(0, dtype=K.floatx())
+
+    def _smooth_labels():
+        num_classes = math_ops.cast(array_ops.shape(y_true)[1], y_pred.dtype)
+        return y_true * (1.0 - label_smoothing) + (label_smoothing / num_classes)
+
+    y_true = smart_cond.smart_cond(label_smoothing,
+                                       _smooth_labels, lambda: y_true)
+    main_loss = K.categorical_crossentropy(y_true, y_pred, from_logits)
     # inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_true)
     if config['ce_loss']:
         batch_size = tuple(y_pred.shape.as_list())[0]
@@ -140,7 +155,6 @@ def loss_inference(y_true, y_pred, config):
         train_loss = main_loss + ce_loss
     else:
         train_loss = main_loss
-    train_loss = train_loss + tf.compat.v1.losses.get_regularization_loss()
     return train_loss
 
 

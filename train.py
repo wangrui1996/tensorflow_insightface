@@ -61,10 +61,13 @@ class Trainer:
             print("Gpu num", config["gpus"])
             self.parallel_model = keras.utils.multi_gpu_model(self.single_model, gpus=config["gpus"])
 
-        train_op = keras.optimizers.RMSprop(lr=config["base_lr"])
+        sgd_op = keras.optimizers.SGD()
+        adam_op = keras.optimizers.Adam()
+        rmsp_op = keras.optimizers.RMSprop(lr=config["base_lr"])
         from libs.loss import LOSS_FUNC
        # self.model.compile(self.train_op,loss=self.inference_loss)
-        self.parallel_model.compile(train_op, loss=LOSS_FUNC(config), metrics=["acc"])
+        self.parallel_model.compile(sgd_op, loss=LOSS_FUNC(config), metrics=["acc"])
+        #self.parallel_model.compile('adam', loss='categorical_crossentropy', metrics=["acc"])
 
     def set_tf_config(self, num_workers):
         import json

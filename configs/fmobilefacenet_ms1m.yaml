@@ -29,20 +29,21 @@ loss_m3: 0.0
 ce_loss: False
 dataset_size: 5822653
 
-base_lr: 0.1
+base_lr: 0.01
 epoch_num: 100
 step_per_epoch: 10000
-batch_size: 64
+batch_size: 180
 
 # set number of gpu to train
-gpus: 1
+gpus: 2
 # set traindata
 train_data: 'faces_emore'
 
 # set valid dataset
-val_data: {'agedb_30': 'agedb_30.bin', 'lfw': 'lfw.bin',
-           'cfp_ff': 'cfp_ff.bin', 'cfp_fp': 'cfp_fp.bin',
-           'calfw': 'calfw.bin', 'cplfw': 'cplfw.bin'}
+val_data: {'agedb_30': 'agedb_30.bin'}
+#  , 'lfw': 'lfw.bin',
+#           'cfp_ff': 'cfp_ff.bin', 'cfp_fp': 'cfp_fp.bin',
+#           'calfw': 'calfw.bin', 'cplfw': 'cplfw.bin'}
 
 outputs_dir: './output_dir'
 
