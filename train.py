@@ -14,7 +14,7 @@ from libs.utils import get_model_by_config, check_folders, load_bin, evaluate, g
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_path', type=str, help='path to config file', default='./configs/fmobilefacenet_webface.yaml')
-    parser.add_argument('--restore_weights', type=str, help='weights to restore train path. for example: ./output_dir/weight.h5', default='')
+    parser.add_argument('--retrain_weights', type=str, help='weights to restore train path. for example: ./output_dir/weight.h5', default='')
     return parser.parse_args()
 
 class Trainer:
@@ -38,18 +38,13 @@ class Trainer:
 
     def build(self):
         config = self.config
-#        cid = ImageData(img_size=config["image_size"], augment_flag=config['augment_flag'], augment_margin=config['augment_margin'])
-#        train_dataset = cid.read_TFRecord(os.path.join("./data", config['train_data'])).shuffle(10000).repeat().batch(config["batch_size"])
-#        train_iterator = train_dataset.make_one_shot_iterator()
-#        self.train_images, self.train_labels = train_iterator.get_next()
-
-#        print("image: ", self.train_images.get_shape())
-#        print("labels ", self.train_labels.get_shape())
 
         def init_model():
             model, embeds = get_model_by_config(config, True)
-            if os.path.exists(config["restore_weights"]):
-                model.load_weights(config["restore_weights"])
+            if os.path.exists(config["retrain_weights"]):
+                model.load_weights(config["retrain_weights"])
+            if os.path.exists(config["fine_weights"]):
+                model.load_weights(config["fine_weights"])
             return model, embeds
                 # logits = get_call_func(self.train_labels, self.model.output, config)
 
@@ -61,101 +56,77 @@ class Trainer:
             print("Gpu num", config["gpus"])
             self.parallel_model = keras.utils.multi_gpu_model(self.single_model, gpus=config["gpus"])
 
-        sgd_op = keras.optimizers.SGD(lr=config['base_lr'])
-        adam_op = keras.optimizers.Adam()
-        rmsp_op = keras.optimizers.RMSprop(lr=config["base_lr"])
         from libs.loss import LOSS_FUNC
-       # self.model.compile(self.train_op,loss=self.inference_loss)
-        self.parallel_model.compile(sgd_op, loss=LOSS_FUNC(config), metrics=["acc"])
-        #self.parallel_model.compile('adam', loss='categorical_crossentropy', metrics=["acc"])
-
-    def set_tf_config(self, num_workers):
-        import json
-        tf_config = json.dumps({
-            'cluster': {
-                'worker': []
-            },
-            'task': {'type': 'worker', 'index': 0}
-        })
-        tf_config = json.loads(tf_config)
-        for port in get_port(num_workers):
-            tf_config["cluster"]["worker"].append("localhost:{}".format(port))
-        os.environ['TF_CONFIG'] = json.dumps(tf_config)
+        from libs.optimizers import OPTIMIZERS_WAY
+        merics = ["acc"] if config["loss_type"] == "softmax" else []
+        self.parallel_model.compile(OPTIMIZERS_WAY(config), loss=LOSS_FUNC(config), metrics=merics)
 
     def train(self):
         config = self.config
 
-#        NUM_WORKERS = math.ceil(self.config["batch_size"] / self.config["gpu_capacity"])
-#        self.set_tf_config(NUM_WORKERS)
-#        GLOBAL_BATCH_SIZE = config["batch_size"] * NUM_WORKERS
-#        strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
-#        with strategy.scope():
-#            self.build(GLOBAL_BATCH_SIZE)
-#            self.config["batch_size"] = GLOBAL_BATCH_SIZE
         self.build()
-        self.best_acc = 0
-        counter = 0
-        outter_class = self
         from tensorflow.python.keras import backend as K
-        self.func = K.function([self.single_model.input], [self.embeds])
-        class LossAndErrorPrintingCallback(tf.keras.callbacks.Callback):
-            def on_epoch_end(self, epoch, logs=None):
-                config = outter_class.config
-                acc = []
-                with open(config["log"], 'a') as f:
-                    epoch_model_path = os.path.join(config["output_dir"], "tmp.h5")
-                    outter_class.single_model.save(epoch_model_path)
-                    f.write('step: %d\n' % counter)
-                    for k, v in config["val_data"].items():
-                        imgs, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
-                        embds = run_embds(outter_class.func, imgs, config["batch_size"]//config["gpus"])
-                        #embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
-                        #embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
-                        tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds, issame, far_target=1e-3, distance_metric=0)
-                        f.write('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (
-                        k, acc_mean, acc_std, tar, tar_std, far))
-                        print('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (
-                        k, acc_mean, acc_std, tar, tar_std, far))
-                        acc.append(acc_mean)
-                    acc = np.mean(np.array(acc))
-                    if acc > outter_class.best_acc:
-#                        saver_best.save(sess, os.path.join(self.model_dir, 'best-m'), global_step=counter)
-                        outter_class.best_acc = acc
-                        outter_class.single_model.save(os.path.join(config["output_dir"], "{}_{}_model.h5".format(config["network"], config["train_data"])))
-                    outter_class.single_model.load_weights(epoch_model_path)
-
-            def on_batch_end(self, batch, logs=None):
-                if batch % 1000 == 0:
-                    config = outter_class.config
-                    json_config = outter_class.single_model.to_json()
-                    with open(os.path.join(config["output_dir"], "batch_model.json"), 'w') as json_file:
-                        json_file.write(json_config)
-                    # Save weights to disk
-                    outter_class.single_model.save_weights(os.path.join(config["output_dir"], "batch_weights.h5"))
-
+        func = K.function([self.single_model.input], [self.embeds])
         workers = int(os.cpu_count() // 1.5)
         self.parallel_model.fit_generator(
             self.data_gen,
             epochs=config["epoch_num"],
             steps_per_epoch=config["step_per_epoch"],
-            callbacks=[LossAndErrorPrintingCallback()],
+            callbacks=[TrainCallback(config, self.single_model, func)],
             max_queue_size=workers*2,
             workers=workers,
             use_multiprocessing=False,
         )
-        # construct the training image generator for data augmentation
-        #self.parallel_model.fit(self.train_images, self.train_labels, batch_size=config["batch_size"],
-        #               epochs=config["epoch_num"],
-        #               steps_per_epoch=config["step_per_epoch"],
-        #               #callbacks=[LossAndErrorPrintingCallback, tensorboard_callback])
-        #               callbacks=[LossAndErrorPrintingCallback()])
+
+class TrainCallback(tf.keras.callbacks.Callback):
+
+    def __init__(self, config, model, func):
+        super(TrainCallback).__init__()
+        self.config = config
+        self.model = model
+        self.func = func
+        self.best_acc = 0
+
+
+    def on_batch_end(self, batch, logs=None):
+        config = self.config
+        # set save model func
+        if batch % config["snapshot"] == 0 and batch != 0:
+            json_config = self.model.to_json()
+            with open(os.path.join(config["output_dir"], "batch{}_model.json".format(batch)), 'w') as json_file:
+                json_file.write(json_config)
+            # Save weights to disk
+            self.model.save_weights(os.path.join(config["output_dir"], "batch{}_weights.h5".format(batch)))
+
+        # set test func
+        elif batch % config["test_interval"] == 0 and batch != 0:
+            acc = []
+            with open(config["log"], 'a') as f:
+                f.write('step: %d\n' % batch)
+                for k, v in config["val_data"].items():
+                    imgs, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
+                    embds = run_embds(self.func, imgs, config["batch_size"] // config["gpus"])
+                    # embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
+                    # embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
+                    tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds, issame, far_target=1e-3,
+                                                                                      distance_metric=0)
+                    f.write('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (
+                        k, acc_mean, acc_std, tar, tar_std, far))
+                    print('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (
+                        k, acc_mean, acc_std, tar, tar_std, far))
+                    acc.append(acc_mean)
+                acc = np.mean(np.array(acc))
+                if acc > self.best_acc:
+                    # saver_best.save(sess, os.path.join(self.model_dir, 'best-m'), global_step=counter)
+                    self.best_acc = acc
+                    self.model.save(os.path.join(config["output_dir"], "best_model.h5"))
 
 if __name__ == '__main__':
     args = parse_args()
 
     config = yaml.load(open(args.config_path), Loader=yaml.FullLoader)
-    weights_path = args.restore_weights
-    config["restore_weights"] = weights_path
+    weights_path = args.retrain_weights
+    config["retrain_weights"] = weights_path
 
     trainer = Trainer(config)
     trainer.train()

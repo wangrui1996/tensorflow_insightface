@@ -282,7 +282,6 @@ def run_embds(func, images, batch_size):
     print('get features done!\r')
     return np.array(embds)
 
-
 def get_port(num=1):
     def tryPort(port):
         import socket

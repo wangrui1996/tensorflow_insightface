@@ -27,7 +27,7 @@ if __name__ == '__main__':
     if args.mode == 'build':
         print('building model ...')
         config = yaml.load(open(args.config_path))
-        model = get_model_by_config([112,112,3], config)
+        model = get_model_by_config(config, is_train=False)
         model.load_weights(args.model_path)
         print(model.input_shape)
         func = K.function([model.input], [model.output])
@@ -44,11 +44,15 @@ if __name__ == '__main__':
             imgs, imgs_f, issame = load_bin(v, config['image_size'])
             print('img size is {}, imgs_f size is {}, issame is {}, and forward running...'.format(len(imgs), len(imgs_f), len(issame)))
             embds_arr = run_embds(func, imgs, batch_size)
+            tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds_arr, issame, far_target=args.target_far,
+                                                                      distance_metric=0)
+            print('not flip. eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f' % (
+            k, acc_mean, acc_std, tar, tar_std, far))
             embds_f_arr = run_embds(func, imgs_f, batch_size)
             embds_arr = embds_arr/np.linalg.norm(embds_arr, axis=1, keepdims=True)+embds_f_arr/np.linalg.norm(embds_f_arr, axis=1, keepdims=True)
             print('get embds done!, starting to constract ...')
             tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds_arr, issame, far_target=args.target_far, distance_metric=0)
-            print('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f' % (k, acc_mean, acc_std, tar, tar_std, far))
+            print('Sum flip. eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f' % (k, acc_mean, acc_std, tar, tar_std, far))
         print('done!')
     else:
         raise ValueError("Invalid value for --mode.")
