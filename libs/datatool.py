@@ -413,7 +413,14 @@ class ImageData:
 
     def generator(self, config):
         from tensorflow.python import keras
-        data_gen = keras.preprocessing.image.ImageDataGenerator()
+        data_gen = keras.preprocessing.image.ImageDataGenerator(
+#            rescale=1./255,
+            rotation_range=0.1,
+            width_shift_range=0.09,
+            height_shift_range=0.09,
+            horizontal_flip=True
+
+                                                                )
         return data_gen.flow_from_directory(
             os.path.join("data", config["train_data"], "images"),
             target_size=(config["input_shape"][0], config["input_shape"][1]),

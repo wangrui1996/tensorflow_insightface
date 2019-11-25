@@ -26,7 +26,7 @@ def get_model_by_config(config, is_train):
 def distance(embeddings1, embeddings2, distance_metric=0):
     if distance_metric == 0:
         # Euclidian distance
-#        embeddings1 = embeddings1 / np.linalg.norm(embeddings1, axis=1, keepdims=True)
+#       embeddings1 = embeddings1 / np.linalg.norm(embeddings1, axis=1, keepdims=True)
 #        embeddings2 = embeddings2 / np.linalg.norm(embeddings2, axis=1, keepdims=True)
         diff = np.subtract(embeddings1, embeddings2)
         dist = np.sum(np.square(diff), 1)
@@ -254,7 +254,7 @@ def load_bin(path, image_size):
 
 
 def evaluate(embeddings, actual_issame, far_target=1e-3, distance_metric=0, nrof_folds=10):
-    thresholds = np.arange(0, 1, 0.0001)
+    thresholds = np.arange(0, 1, 0.01)
     if distance_metric == 1:
         thresholdes = np.arange(0, 1, 0.0025)
     embeddings1 = embeddings[0::2]
