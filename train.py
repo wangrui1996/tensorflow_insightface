@@ -47,21 +47,21 @@ class Trainer:
 #        print("labels ", self.train_labels.get_shape())
 
         def init_model():
-            model = get_model_by_config(config, True)
+            model, embeds = get_model_by_config(config, True)
             if os.path.exists(config["restore_weights"]):
                 model.load_weights(config["restore_weights"])
-            return model
+            return model, embeds
                 # logits = get_call_func(self.train_labels, self.model.output, config)
 
         if config["gpus"] <= 1:
-            self.single_model = init_model()
+            self.single_model, self.embeds = init_model()
             self.parallel_model = self.single_model
         else:
-            self.single_model = init_model()
+            self.single_model, self.embeds = init_model()
             print("Gpu num", config["gpus"])
             self.parallel_model = keras.utils.multi_gpu_model(self.single_model, gpus=config["gpus"])
 
-        sgd_op = keras.optimizers.SGD()
+        sgd_op = keras.optimizers.SGD(lr=config['base_lr'])
         adam_op = keras.optimizers.Adam()
         rmsp_op = keras.optimizers.RMSprop(lr=config["base_lr"])
         from libs.loss import LOSS_FUNC
@@ -97,7 +97,7 @@ class Trainer:
         counter = 0
         outter_class = self
         from tensorflow.python.keras import backend as K
-        self.func = K.function([self.single_model.input], [self.single_model.output])
+        self.func = K.function([self.single_model.input], [self.embeds])
         class LossAndErrorPrintingCallback(tf.keras.callbacks.Callback):
             def on_epoch_end(self, epoch, logs=None):
                 config = outter_class.config
@@ -107,10 +107,10 @@ class Trainer:
                     outter_class.single_model.save(epoch_model_path)
                     f.write('step: %d\n' % counter)
                     for k, v in config["val_data"].items():
-                        imgs, imgs_f, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
+                        imgs, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
                         embds = run_embds(outter_class.func, imgs, config["batch_size"]//config["gpus"])
-                        embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
-                        embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
+                        #embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
+                        #embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
                         tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds, issame, far_target=1e-3, distance_metric=0)
                         f.write('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (
                         k, acc_mean, acc_std, tar, tar_std, far))
@@ -132,9 +132,6 @@ class Trainer:
                         json_file.write(json_config)
                     # Save weights to disk
                     outter_class.single_model.save_weights(os.path.join(config["output_dir"], "batch_weights.h5"))
-
-
-
 
         workers = int(os.cpu_count() // 1.5)
         self.parallel_model.fit_generator(

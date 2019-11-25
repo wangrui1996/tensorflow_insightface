@@ -27,8 +27,8 @@ def get_model_by_config(config, is_train):
 def distance(embeddings1, embeddings2, distance_metric=0):
     if distance_metric == 0:
         # Euclidian distance
-        embeddings1 = embeddings1 / np.linalg.norm(embeddings1, axis=1, keepdims=True)
-        embeddings2 = embeddings2 / np.linalg.norm(embeddings2, axis=1, keepdims=True)
+#        embeddings1 = embeddings1 / np.linalg.norm(embeddings1, axis=1, keepdims=True)
+#        embeddings2 = embeddings2 / np.linalg.norm(embeddings2, axis=1, keepdims=True)
         diff = np.subtract(embeddings1, embeddings2)
         dist = np.sum(np.square(diff), 1)
     elif distance_metric == 1:
@@ -243,12 +243,13 @@ def load_bin(path, image_size):
         # img = img[s:s+image_size, s:s+image_size, :]
         img_f = np.fliplr(img)
         img = img/127.5-1.0
-        img_f = img_f/127.5-1.0
+#        img_f = img_f/127.5-1.0
         images[cnt] = img
-        images_f[cnt] = img_f
+#        images_f[cnt] = img_f
         cnt += 1
     print('done!\r')
-    return (images, images_f, issame_list)
+    return (images, issame_list)
+#    return (images, images_f, issame_list)
 
 
 
