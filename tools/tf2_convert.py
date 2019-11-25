@@ -7,21 +7,31 @@ import argparse
 def get_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--mode', type=str, help='from which to generate TFRecord, folders or mxrec', default='mxrec')
-    parser.add_argument('--image_size', type=int, help='image size', default=112)
-    parser.add_argument('--read_dir', type=str, help='directory to read data', default='')
-    parser.add_argument('--save_path', type=str, help='path to save TFRecord file', default='')
-    parser.add_argument('--thread_num', type=int, help='number of thread to progress data', default=None)
+    #parser.add_argument('--mode', type=str, help='from which to generate TFRecord, folders or mxrec', default='mxrec')
+    parser.add_argument('--model_json', type=str, help='image size', default=None)
+    parser.add_argument('--weights', type=str, help='directory to read data', default='')
+    parser.add_argument('--config', type=str, help='directory to read data', default=None)
+   # parser.add_argument('--save_path', type=str, help='path to save TFRecord file', default='')
+   # parser.add_argument('--thread_num', type=int, help='number of thread to progress data', default=None)
 
     return parser.parse_args()
 
+args = get_args()
 
 # Load the MobileNet tf.keras model.
 assert int(tf.__version__.split(".")[0]) >= 2, "tensorflow{} 版本不满足".format(tf.__version__)
-with open("model.json") as json_file:
-    json_config = json_file.read()
-model = keras.models.model_from_json(json_config)
-model.load_weights('weights.h5')
+
+if args.model_json != None:
+    with open(args.model_json) as json_file:
+        json_config = json_file.read()
+    model = keras.models.model_from_json(json_config, custom_objects={'leaky_relu': tf.nn.leaky_relu})
+else:
+    import yaml
+    config = yaml.load(open(args.config))
+    from libs.utils import get_model_by_config
+    model = get_model_by_config(config, False)
+# weights.h5
+model.load_weights(args.weights, True)
 
 out_path = "./demo.tflite"
 

@@ -1,6 +1,5 @@
 import tensorflow as tf
 from tensorflow.python.keras import layers
-import libs.models.resnet_v2 as resnet
 import libs.models.fmobilefacenet as fmobilefacenet
 
 import os
@@ -55,6 +54,7 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, distance_
     accuracy = np.zeros((nrof_folds))
 
     dist = distance(embeddings1, embeddings2, distance_metric)
+    print(dist)
     indices = np.arange(nrof_pairs)
 
     for fold_idx, (train_set, test_set) in enumerate(k_fold.split(indices)):
@@ -62,13 +62,13 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, distance_
         # Find the best threshold for the fold
         acc_train = np.zeros((nrof_thresholds))
         for threshold_idx, threshold in enumerate(thresholds):
-            _, _, acc_train[threshold_idx] = calculate_accuracy(threshold, dist[train_set], actual_issame[train_set])
+            _, _, acc_train[threshold_idx] = calculate_accuracy(threshold, dist[train_set],
+                                                                actual_issame[train_set])
         best_threshold_index = np.argmax(acc_train)
         for threshold_idx, threshold in enumerate(thresholds):
             tprs[fold_idx, threshold_idx], fprs[fold_idx, threshold_idx], _ = calculate_accuracy(threshold,
                                                                                                  dist[test_set],
-                                                                                                 actual_issame[
-                                                                                                     test_set])
+                                                                                                 actual_issame[test_set])
         _, _, accuracy[fold_idx] = calculate_accuracy(thresholds[best_threshold_index], dist[test_set],
                                                       actual_issame[test_set])
 
@@ -241,8 +241,8 @@ def load_bin(path, image_size):
         img = np.fromstring(io.BytesIO(bin).read(), np.uint8)
         img = cv2.imdecode(img, cv2.IMREAD_COLOR)
         # img = img[s:s+image_size, s:s+image_size, :]
-        img_f = np.fliplr(img)
-        img = img/127.5-1.0
+#        img_f = np.fliplr(img)
+#        img = img/127.5-1.0
 #        img_f = img_f/127.5-1.0
         images[cnt] = img
 #        images_f[cnt] = img_f
@@ -254,7 +254,7 @@ def load_bin(path, image_size):
 
 
 def evaluate(embeddings, actual_issame, far_target=1e-3, distance_metric=0, nrof_folds=10):
-    thresholds = np.arange(0, 4, 0.01)
+    thresholds = np.arange(0, 1, 0.0001)
     if distance_metric == 1:
         thresholdes = np.arange(0, 1, 0.0025)
     embeddings1 = embeddings[0::2]

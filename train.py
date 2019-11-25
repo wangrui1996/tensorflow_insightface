@@ -86,23 +86,25 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self.model = model
         self.func = func
         self.best_acc = 0
-
+        self.counter = 0
 
     def on_batch_end(self, batch, logs=None):
+        self.counter = self.counter + 1
+        counter = self.counter
         config = self.config
         # set save model func
-        if batch % config["snapshot"] == 0 and batch != 0:
+        if counter % config["snapshot"] == 0:
             json_config = self.model.to_json()
-            with open(os.path.join(config["output_dir"], "batch{}_model.json".format(batch)), 'w') as json_file:
+            with open(os.path.join(config["output_dir"], "step{}_model.json".format(counter)), 'w') as json_file:
                 json_file.write(json_config)
             # Save weights to disk
-            self.model.save_weights(os.path.join(config["output_dir"], "batch{}_weights.h5".format(batch)))
+            self.model.save_weights(os.path.join(config["output_dir"], "step{}_weights.h5".format(counter)))
 
         # set test func
-        elif batch % config["test_interval"] == 0 and batch != 0:
+        elif counter % config["test_interval"] == 0:
             acc = []
             with open(config["log"], 'a') as f:
-                f.write('step: %d\n' % batch)
+                f.write('step: %d\n' % counter)
                 for k, v in config["val_data"].items():
                     imgs, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
                     embds = run_embds(self.func, imgs, config["batch_size"] // config["gpus"])
