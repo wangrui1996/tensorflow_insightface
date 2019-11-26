@@ -416,8 +416,10 @@ class ImageData:
         data_gen = keras.preprocessing.image.ImageDataGenerator(
 #            rescale=1./255,
             rotation_range=0.1,
-            width_shift_range=0.09,
-            height_shift_range=0.09,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            shear_range=0.2,
+            brightness_range=[0.5, 1.5],
             horizontal_flip=True
 
                                                                 )
