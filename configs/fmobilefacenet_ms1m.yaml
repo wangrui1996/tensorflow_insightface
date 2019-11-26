@@ -15,6 +15,8 @@ image_size: 112
 class_num: 85742
 embed_size: 256
 
+
+drop_rate: 0.5
 fc_type: "GDC"
 fc7_use_bias: True
 softmax_layer: "softmax_pred"
@@ -26,7 +28,7 @@ loss_m2: 0.5
 loss_m3: 0.0
 
 
-ce_loss: False
+ce_loss: True
 dataset_size: 5822653
 
 # train param
