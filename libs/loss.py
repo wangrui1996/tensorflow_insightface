@@ -1,13 +1,10 @@
 import tensorflow as tf
-import math
-import numpy as np
 
 from tensorflow.python.framework import ops
 from tensorflow.python.keras import layers
 from tensorflow.python.keras import backend as K
 from tensorflow.python import keras
 from tensorflow.python.ops import array_ops
-from tensorflow.python.keras import regularizers
 
 def _get_available_devices():
   return [x.name for x in K.get_session().list_devices()]
@@ -128,22 +125,23 @@ def loss_inference(y_true, y_pred, from_logits=False, label_smoothing=0, config=
     if config['loss_type'] == "softmax":
         pass
     elif config['loss_type'] == 'margin':
-        logits = margin_softmax(y_pred, y_true, config)
+        y_pred = margin_softmax(y_pred, y_true, config)
     else:
         raise ValueError('Invalid loss type.')
-    from tensorflow.python.ops import math_ops
-    from tensorflow.python.framework import smart_cond
-    y_pred = ops.convert_to_tensor(y_pred)
-    y_true = math_ops.cast(y_true, y_pred.dtype)
-    label_smoothing = ops.convert_to_tensor(0, dtype=K.floatx())
+#    from tensorflow.python.ops import math_ops
+#    from tensorflow.python.framework import smart_cond
+#    y_pred = ops.convert_to_tensor(y_pred)
+#    y_true = math_ops.cast(y_true, y_pred.dtype)
+#    label_smoothing = ops.convert_to_tensor(0, dtype=K.floatx())
 
-    def _smooth_labels():
-        num_classes = math_ops.cast(array_ops.shape(y_true)[1], y_pred.dtype)
-        return y_true * (1.0 - label_smoothing) + (label_smoothing / num_classes)
+#    def _smooth_labels():
+#        num_classes = math_ops.cast(array_ops.shape(y_true)[1], y_pred.dtype)
+#        return y_true * (1.0 - label_smoothing) + (label_smoothing / num_classes)
 
-    y_true = smart_cond.smart_cond(label_smoothing,
-                                       _smooth_labels, lambda: y_true)
-    main_loss = K.categorical_crossentropy(y_true, y_pred, from_logits)
+#    y_true = smart_cond.smart_cond(label_smoothing,
+#                                       _smooth_labels, lambda: y_true)
+#    main_loss = K.categorical_crossentropy(y_true, y_pred, from_logits)
+    main_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y_true)
     # inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_true)
     if config['ce_loss']:
         body = y_pred

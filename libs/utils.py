@@ -274,12 +274,12 @@ def run_embds(func, images, batch_size):
         image_batch = images[i*batch_size: (i+1)*batch_size]
         cur_embd = func([image_batch])[0]
         embds += list(cur_embd)
-        print('%d/%d' % (i, batch_num), end='\r')
+#        print('%d/%d' % (i, batch_num), end='\r')
     if left > 0:
         image_batch = images[-left:]
         cur_embd = func([image_batch])[0]
         embds += list(cur_embd)
-    print('get features done!\r')
+#    print('get features done!\r')
     return np.array(embds)
 
 def get_port(num=1):

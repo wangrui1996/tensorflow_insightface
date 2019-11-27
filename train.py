@@ -101,7 +101,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
             self.model.save_weights(os.path.join(config["output_dir"], "step{}_weights.h5".format(counter)))
 
         # set test func
-        if counter % config["test_interval"] == 0 or counter == 0:
+        if counter % config["test_interval"] == 0 or counter == 1:
             acc = []
             with open(config["log"], 'a') as f:
                 f.write('step: %d\n' % counter)
