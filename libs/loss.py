@@ -111,7 +111,8 @@ def generate_loss_func(config):
                         # Save the outputs for merging back together later.
                         outputs.append(output)
             with ops.device('/cpu:0'):
-                merged = layers.concatenate(axis=0, name="sum_loss")(outputs)
+                merged = array_ops.concat(outputs, axis=0)
+                #merged = layers.concatenate(inputs=outputs, axis=0, name="sum_loss")()
             return merged
 
         return _multi_gpu_loss

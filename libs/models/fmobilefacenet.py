@@ -86,7 +86,7 @@ def get_network(config, is_train=False):
         model = models.Model(img_input, embeds, name=config["network"])
         return model
 
-    output = keras.layers.Dropout(rate=config["drop_rate"], name="dropout")(output)
+    #output = keras.layers.Dropout(rate=config["drop_rate"], name="dropout")(output)
 
     if config["loss_type"] == "margin":
         return models.Model(img_input, output, name=config["network"]), embeds
