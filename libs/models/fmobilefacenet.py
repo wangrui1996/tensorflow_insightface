@@ -92,7 +92,7 @@ def get_network(config, is_train=False):
         return models.Model(img_input, output, name=config["network"]), embeds
     elif config["loss_type"] == "softmax":
         output = keras.layers.Dense(config['class_num'], kernel_regularizer=K.l2_normalize, use_bias=config["fc7_use_bias"], name="fc7")(output)
-        #output = keras.layers.Softmax()(output)
+        output = keras.layers.Softmax()(output)
         return models.Model(img_input, output, name=config["network"]), embeds
     else:
         print("can not find {}".format(config["loss_type"]))
