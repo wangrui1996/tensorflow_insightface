@@ -111,7 +111,7 @@ def generate_loss_func(config):
                         # Save the outputs for merging back together later.
                         outputs.append(output)
             with ops.device('/cpu:0'):
-                merged = layers.concatenate(outputs, axis=0, name="sum_loss")
+                merged = layers.concatenate(axis=0, name="sum_loss")(outputs)
             return merged
 
         return _multi_gpu_loss
@@ -136,7 +136,7 @@ def loss_inference(y_true, y_pred, from_logits=False, label_smoothing=0, config=
 
 #    y_true = smart_cond.smart_cond(label_smoothing,
 #                                       _smooth_labels, lambda: y_true)
-    main_loss = K.categorical_crossentropy(y_true, y_pred, True)
+    main_loss = K.categorical_crossentropy(y_true, y_pred)
 #    main_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y_true)
     # inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_true)
     if config['ce_loss']:
