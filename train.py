@@ -42,9 +42,9 @@ class Trainer:
         def init_model():
             model, embeds = get_model_by_config(config, True)
             if os.path.exists(config["retrain_weights"]):
-                model.load_weights(config["retrain_weights"])
+                model.load_weights(config["retrain_weights"], True)
             if os.path.exists(config["fine_weights"]):
-                model.load_weights(config["fine_weights"])
+                model.load_weights(config["fine_weights"], True)
             return model, embeds
                 # logits = get_call_func(self.train_labels, self.model.output, config)
 
@@ -101,16 +101,17 @@ class TrainCallback(tf.keras.callbacks.Callback):
             self.model.save_weights(os.path.join(config["output_dir"], "step{}_weights.h5".format(counter)))
 
         # set test func
-        elif counter % config["test_interval"] == 0:
+        if counter % config["test_interval"] == 0:
             acc = []
             with open(config["log"], 'a') as f:
                 f.write('step: %d\n' % counter)
                 for k, v in config["val_data"].items():
                     imgs, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
                     embds = run_embds(self.func, imgs, config["batch_size"] // config["gpus"])
+                    embds_f = run_embds(self.func, imgs, config["batch_size"] // config["gpus"])
+                    #embds = embds / np.linalg.norm(embds, axis=1, keepdims=True)
                     # embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
-                    # embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
-                    embds = embds * 2
+                    embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
                     tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds, issame, far_target=1e-3,
                                                                                       distance_metric=0)
                     f.write('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (

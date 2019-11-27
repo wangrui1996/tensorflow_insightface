@@ -241,14 +241,14 @@ def load_bin(path, image_size):
         img = np.fromstring(io.BytesIO(bin).read(), np.uint8)
         img = cv2.imdecode(img, cv2.IMREAD_COLOR)
         # img = img[s:s+image_size, s:s+image_size, :]
-#        img_f = np.fliplr(img)
+        img_f = np.fliplr(img)
 #        img = img/127.5-1.0
 #        img_f = img_f/127.5-1.0
         images[cnt] = img
-#        images_f[cnt] = img_f
+        images_f[cnt] = img_f
         cnt += 1
     print('done!\r')
-    return (images, issame_list)
+    return (images, images_f, issame_list)
 #    return (images, images_f, issame_list)
 
 

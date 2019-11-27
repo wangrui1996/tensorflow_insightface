@@ -79,8 +79,9 @@ def get_network(config, is_train=False):
 
     output = get_fc1(x, config)
 
+
     #embeds = keras.layers.Lambda(lambda x: K.l2_normalize(x))(fc1)
-    embeds = keras.layers.Lambda(lambda x: K.l2_normalize(x))(output)
+    embeds = output
     if not is_train:
         model = models.Model(img_input, embeds, name=config["network"])
         return model

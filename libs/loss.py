@@ -146,12 +146,12 @@ def loss_inference(y_true, y_pred, from_logits=False, label_smoothing=0, config=
     main_loss = K.categorical_crossentropy(y_true, y_pred, from_logits)
     # inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_true)
     if config['ce_loss']:
-        batch_size = tuple(y_pred.shape.as_list())[0]
         body = y_pred
         body = K.log(body)
-        _label = tf.one_hot(y_true, depth=config["class_num"], on_value=-1.0, off_value=0.0)
+        _label = -y_true
+        #_label = tf.one_hot(y_true_int, depth=config["class_num"], on_value=-1.0, off_value=0.0)
         body = body * _label
-        ce_loss = K.sum(body) / batch_size
+        ce_loss = K.sum(body) / config["batch_size"]
         train_loss = main_loss + ce_loss
     else:
         train_loss = main_loss
