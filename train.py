@@ -101,14 +101,14 @@ class TrainCallback(tf.keras.callbacks.Callback):
             self.model.save_weights(os.path.join(config["output_dir"], "step{}_weights.h5".format(counter)))
 
         # set test func
-        if counter % config["test_interval"] == 0:
+        if counter % config["test_interval"] == 0 or counter == 0:
             acc = []
             with open(config["log"], 'a') as f:
                 f.write('step: %d\n' % counter)
                 for k, v in config["val_data"].items():
-                    imgs, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
+                    imgs, imgs_f, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
                     embds = run_embds(self.func, imgs, config["batch_size"] // config["gpus"])
-                    embds_f = run_embds(self.func, imgs, config["batch_size"] // config["gpus"])
+                    embds_f = run_embds(self.func, imgs_f, config["batch_size"] // config["gpus"])
                     #embds = embds / np.linalg.norm(embds, axis=1, keepdims=True)
                     # embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
                     embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
