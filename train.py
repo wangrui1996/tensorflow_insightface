@@ -9,7 +9,7 @@ from tensorflow.python import keras as keras
 from datetime import datetime
 
 from libs.datatool import ImageData
-from libs.utils import get_model_by_config, check_folders, load_bin, evaluate, get_port, run_embds
+from libs.utils import get_model_by_config, check_folders, load_bin, evaluate, get_port, run_embds, test
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -89,8 +89,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self.counter = 0
 
     def on_batch_end(self, batch, logs=None):
-        self.counter = self.counter + 1
-        counter = self.counter
+        counter = self.counter + 1
         config = self.config
         # set save model func
         if counter % config["snapshot"] == 0:
@@ -101,28 +100,23 @@ class TrainCallback(tf.keras.callbacks.Callback):
             self.model.save_weights(os.path.join(config["output_dir"], "step{}_weights.h5".format(counter)))
 
         # set test func
-        elif counter % config["test_interval"] == 0:
+        if counter % config["test_interval"] == 0 or counter == 1:
             acc = []
             with open(config["log"], 'a') as f:
                 f.write('step: %d\n' % counter)
                 for k, v in config["val_data"].items():
-                    imgs, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
-                    embds = run_embds(self.func, imgs, config["batch_size"] // config["gpus"])
-                    embds = embds * 2
-                    # embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
-                    # embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
-                    tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds, issame, far_target=1e-3,
-                                                                                      distance_metric=0)
-                    f.write('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (
-                        k, acc_mean, acc_std, tar, tar_std, far))
-                    print('eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f\n' % (
-                        k, acc_mean, acc_std, tar, tar_std, far))
+                    acc_mean, acc_std, best_threshold, dist_min, dist_max = test(v, config, self.func)
+                    print('eval %s. Accuracy-Flip: %1.5f+-%1.5f' % (k, acc_mean, acc_std))
+                    print('best threshold %1.5f. distance range (%1.5f-%1.5f)' % (best_threshold, dist_min, dist_max))
+                    f.write('eval %s. Accuracy-Flip: %1.5f+-%1.5f' % (k, acc_mean, acc_std))
+                    f.write('best threshold %1.5f. distance range (%1.5f-%1.5f)' % (best_threshold, dist_min, dist_max))
                     acc.append(acc_mean)
                 acc = np.mean(np.array(acc))
                 if acc > self.best_acc:
                     # saver_best.save(sess, os.path.join(self.model_dir, 'best-m'), global_step=counter)
                     self.best_acc = acc
                     self.model.save(os.path.join(config["output_dir"], "best_model.h5"))
+        self.counter = counter
 
 if __name__ == '__main__':
     args = parse_args()

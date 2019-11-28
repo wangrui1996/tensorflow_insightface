@@ -54,9 +54,8 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, distance_
     accuracy = np.zeros((nrof_folds))
 
     dist = distance(embeddings1, embeddings2, distance_metric)
-    print(dist)
     indices = np.arange(nrof_pairs)
-
+    best_thresholds = []
     for fold_idx, (train_set, test_set) in enumerate(k_fold.split(indices)):
 
         # Find the best threshold for the fold
@@ -71,10 +70,14 @@ def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, distance_
                                                                                                  actual_issame[test_set])
         _, _, accuracy[fold_idx] = calculate_accuracy(thresholds[best_threshold_index], dist[test_set],
                                                       actual_issame[test_set])
+        best_thresholds.append(thresholds[best_threshold_index])
 
     tpr = np.mean(tprs, 0)
     fpr = np.mean(fprs, 0)
-    return tpr, fpr, accuracy
+    best_threshold = np.mean(best_thresholds)
+    dist_min = np.min(dist)
+    dist_max = np.max(dist)
+    return tpr, fpr, accuracy, best_threshold, dist_min, dist_max
 
 
 def calculate_accuracy(threshold, dist, actual_issame):
@@ -241,29 +244,29 @@ def load_bin(path, image_size):
         img = np.fromstring(io.BytesIO(bin).read(), np.uint8)
         img = cv2.imdecode(img, cv2.IMREAD_COLOR)
         # img = img[s:s+image_size, s:s+image_size, :]
-#        img_f = np.fliplr(img)
+        img_f = np.fliplr(img)
 #        img = img/127.5-1.0
 #        img_f = img_f/127.5-1.0
         images[cnt] = img
-#        images_f[cnt] = img_f
+        images_f[cnt] = img_f
         cnt += 1
     print('done!\r')
-    return (images, issame_list)
-#    return (images, images_f, issame_list)
+    return (images, images_f, issame_list)
 
 
 
-def evaluate(embeddings, actual_issame, far_target=1e-3, distance_metric=0, nrof_folds=10):
-    thresholds = np.arange(0, 1, 0.0001)
-    if distance_metric == 1:
-        thresholdes = np.arange(0, 1, 0.0025)
+def evaluate(embeddings, actual_issame, distance_metric=0, nrof_folds=10):
+    thresholds = np.arange(0, 4, 0.01)
+#    if distance_metric == 1:
+#        thresholdes = np.arange(0, 1, 0.0025)
     embeddings1 = embeddings[0::2]
     embeddings2 = embeddings[1::2]
-    tpr, fpr, accuracy = calculate_roc(thresholds, embeddings1, embeddings2, np.asarray(actual_issame), distance_metric=distance_metric, nrof_folds=nrof_folds)
-    tar, tar_std, far = calculate_tar(thresholds, embeddings1, embeddings2, np.asarray(actual_issame), far_target=far_target, distance_metric=distance_metric, nrof_folds=nrof_folds)
+    tpr, fpr, accuracy, best_threshold, dist_min, dist_max = calculate_roc(thresholds, embeddings1, embeddings2, np.asarray(actual_issame), distance_metric=distance_metric, nrof_folds=nrof_folds)
+#    tar, tar_std, far = calculate_tar(thresholds, embeddings1, embeddings2, np.asarray(actual_issame), far_target=far_target, distance_metric=distance_metric, nrof_folds=nrof_folds)
+    tar, tar_std, far = (0,0,0)
     acc_mean = np.mean(accuracy)
     acc_std = np.std(accuracy)
-    return tpr, fpr, acc_mean, acc_std, tar, tar_std, far
+    return tpr, fpr, acc_mean, acc_std, tar, tar_std, far, best_threshold, dist_min, dist_max
 
 
 def run_embds(func, images, batch_size):
@@ -281,6 +284,15 @@ def run_embds(func, images, batch_size):
         embds += list(cur_embd)
     print('get features done!\r')
     return np.array(embds)
+
+def test(path, config, func):
+    imgs, imgs_f, issame = load_bin(path, config["image_size"])
+    embeds_arr = run_embds(func, imgs, config["batch_size"]//config["gpus"])
+    embeds_f_arr = run_embds(func, imgs_f, config["batch_size"]//config["gpus"])
+    embds_arr = embeds_arr/np.linalg.norm(embeds_arr, axis=1, keepdims=True)+embeds_f_arr/np.linalg.norm(embeds_f_arr, axis=1, keepdims=True)
+    _, _, acc_mean, acc_std, _, _, _, best_threshold, dist_min, dist_max = evaluate(embds_arr, issame, distance_metric=0)
+    return acc_mean, acc_std, best_threshold, dist_min, dist_max
+
 
 def get_port(num=1):
     def tryPort(port):

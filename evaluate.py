@@ -9,7 +9,7 @@ from tensorflow.python.keras import backend as K
 
 import cv2
 
-from libs.utils import get_model_by_config,  load_bin, evaluate, run_embds
+from libs.utils import get_model_by_config, test
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -41,19 +41,9 @@ if __name__ == '__main__':
         else:
             val_data[os.path.basename(args.val_data)] = args.val_data
         for k, v in val_data.items():
-            imgs, issame = load_bin(v, config['image_size'])
-            print('img size is {}, issame is {}, and forward running...'.format(len(imgs), len(issame)))
-            embds_arr = run_embds(func, imgs, batch_size)
-            tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds_arr, issame, far_target=args.target_far,
-                                                                      distance_metric=0)
-            print('not flip. eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f' % (
-            k, acc_mean, acc_std, tar, tar_std, far))
-#            embds_f_arr = run_embds(func, imgs_f, batch_size)
-#            embds_arr = embds_arr/np.linalg.norm(embds_arr, axis=1, keepdims=True)+embds_f_arr/np.linalg.norm(embds_f_arr, axis=1, keepdims=True)
-#            print('get embds done!, starting to constract ...')
-#            tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds_arr, issame, far_target=args.target_far, distance_metric=0)
-#            print('Sum flip. eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f' % (k, acc_mean, acc_std, tar, tar_std, far))
-        print('done!')
+            acc_mean, acc_std, best_threshold, dist_min, dist_max = test(v, config, func)
+            print('eval %s. Accuracy-Flip: %1.5f+-%1.5f' % (k, acc_mean, acc_std))
+            print('best threshold %1.5f. distance range (%1.5f-%1.5f)' % (best_threshold, dist_min, dist_max))
     else:
         raise ValueError("Invalid value for --mode.")
 
