@@ -108,6 +108,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
                 for k, v in config["val_data"].items():
                     imgs, issame = load_bin(os.path.join("data", config["train_data"], v), config["image_size"])
                     embds = run_embds(self.func, imgs, config["batch_size"] // config["gpus"])
+                    embds = embds * 2
                     # embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
                     # embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
                     tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds, issame, far_target=1e-3,

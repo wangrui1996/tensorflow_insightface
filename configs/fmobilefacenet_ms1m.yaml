@@ -34,9 +34,9 @@ optimizers: sgd
 base_lr: 0.1
 epoch_num: 100
 step_per_epoch: 10000
-batch_size: 80
-test_interval: 100
-snapshot: 10
+batch_size: 170
+test_interval: 10000
+snapshot: 10000
 gpus: 1
 # set traindata
 train_data: 'faces_emore'
