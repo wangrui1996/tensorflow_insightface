@@ -1,5 +1,4 @@
 import os
-
 import tensorflow as tf
 from tensorflow.python.keras import layers
 from tensorflow.python.keras import models
@@ -83,15 +82,17 @@ def get_network(config, is_train=False):
     #embeds = keras.layers.Lambda(lambda x: K.l2_normalize(x))(fc1)
     embeds = output
     if not is_train:
+        embeds = keras.layers.Lambda(lambda x: K.l2_normalize(x))(output)
+
         model = models.Model(img_input, embeds, name=config["network"])
         return model
 
-    #output = keras.layers.Dropout(rate=config["drop_rate"], name="dropout")(output)
 
     if config["loss_type"] == "margin":
         return models.Model(img_input, output, name=config["network"]), embeds
     elif config["loss_type"] == "softmax":
-        output = keras.layers.Dense(config['class_num'], kernel_regularizer=K.l2_normalize, use_bias=config["fc7_use_bias"], name="fc7")(output)
+        output = keras.layers.Dense(config['class_num'], use_bias=config["fc7_use_bias"],kernel_regularizer='l2' ,name="fc7")(output)
+        output = keras.layers.Softmax()(output)
         return models.Model(img_input, output, name=config["network"]), embeds
     else:
         print("can not find {}".format(config["loss_type"]))

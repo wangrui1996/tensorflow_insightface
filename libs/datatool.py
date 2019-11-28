@@ -415,11 +415,11 @@ class ImageData:
         from tensorflow.python import keras
         data_gen = keras.preprocessing.image.ImageDataGenerator(
 #            rescale=1./255,
-            rotation_range=0.1,
-            width_shift_range=0.1,
-            height_shift_range=0.1,
-            shear_range=0.2,
-            brightness_range=[0.5, 1.5],
+            rotation_range=0.01,
+            width_shift_range=0.05,
+            height_shift_range=0.05,
+            shear_range=0.01,
+            brightness_range=[0.9, 1.1],
             horizontal_flip=True
 
                                                                 )

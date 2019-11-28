@@ -57,8 +57,11 @@ class Trainer:
             self.parallel_model = keras.utils.multi_gpu_model(self.single_model, gpus=config["gpus"])
 
         from libs.loss import LOSS_FUNC
+        from libs.loss import METRICS_FUNC
         from libs.optimizers import OPTIMIZERS_WAY
-        merics = ["acc"] if config["loss_type"] == "softmax" else []
+
+
+        merics = [METRICS_FUNC] if config["loss_type"] == "softmax" else []
         self.parallel_model.compile(OPTIMIZERS_WAY(config), loss=LOSS_FUNC(config), metrics=merics)
 
     def train(self):

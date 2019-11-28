@@ -41,10 +41,15 @@ if __name__ == '__main__':
         else:
             val_data[os.path.basename(args.val_data)] = args.val_data
         for k, v in val_data.items():
-            imgs, issame = load_bin(v, config['image_size'])
+            imgs, imgs_f, issame = load_bin(v, config['image_size'])
             print('img size is {}, issame is {}, and forward running...'.format(len(imgs), len(issame)))
-            embds_arr = run_embds(func, imgs, batch_size)
-            tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds_arr, issame, far_target=args.target_far,
+            #embds_arr = run_embds(func, imgs, batch_size)
+            embds = run_embds(func, imgs, config["batch_size"] // config["gpus"])
+            embds_f = run_embds(func, imgs_f, config["batch_size"] // config["gpus"])
+                    #embds = embds / np.linalg.norm(embds, axis=1, keepdims=True)
+                    # embds_f = run_embds(outter_class.func, imgs_f, config["batch_size"]//config["gpus"])
+            embds = embds / np.linalg.norm(embds, axis=1, keepdims=True) + embds_f / np.linalg.norm(embds_f, axis=1, keepdims=True)
+            tpr, fpr, acc_mean, acc_std, tar, tar_std, far = evaluate(embds, issame, far_target=args.target_far,
                                                                       distance_metric=0)
             print('not flip. eval on %s: acc--%1.5f+-%1.5f, tar--%1.5f+-%1.5f@far=%1.5f' % (
             k, acc_mean, acc_std, tar, tar_std, far))
