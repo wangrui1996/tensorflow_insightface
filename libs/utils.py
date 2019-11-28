@@ -254,9 +254,9 @@ def load_bin(path, image_size):
 
 
 def evaluate(embeddings, actual_issame, far_target=1e-3, distance_metric=0, nrof_folds=10):
-    thresholds = np.arange(0, 1, 0.01)
+    thresholds = np.arange(0, 10, 0.01)
     if distance_metric == 1:
-        thresholdes = np.arange(0, 1, 0.0025)
+        thresholdes = np.arange(0, 10, 0.0025)
     embeddings1 = embeddings[0::2]
     embeddings2 = embeddings[1::2]
     tpr, fpr, accuracy = calculate_roc(thresholds, embeddings1, embeddings2, np.asarray(actual_issame), distance_metric=distance_metric, nrof_folds=nrof_folds)

@@ -5,7 +5,9 @@ from tensorflow.python.keras import layers
 from tensorflow.python.keras import backend as K
 from tensorflow.python import keras
 from tensorflow.python.ops import array_ops
-
+from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import gen_math_ops
 def _get_available_devices():
   return [x.name for x in K.get_session().list_devices()]
 
@@ -15,7 +17,7 @@ def _normalize_device_name(name):
   return name
 
 def generate_loss_func(config):
-    from tensorflow.python.util.tf_export import keras_export
+
     if config["gpus"] <= 1:
         @keras_export("keras.losses.custom_loss")
         def _loss(y_true, y_pred, from_logits=False,
@@ -111,7 +113,8 @@ def generate_loss_func(config):
                         # Save the outputs for merging back together later.
                         outputs.append(output)
             with ops.device('/cpu:0'):
-                merged = layers.concatenate(axis=0, name="sum_loss")(outputs)
+               # merged = layers.concatenate(inputs=outputs, axis=0, name="sum_loss")()
+                merged = array_ops.concat(outputs, axis=0)
             return merged
 
         return _multi_gpu_loss
@@ -119,6 +122,7 @@ def generate_loss_func(config):
 
 def loss_inference(y_true, y_pred, from_logits=False, label_smoothing=0, config=None):
     if config['loss_type'] == "softmax":
+        #y_pred = keras.layers.Softmax()(y_pred)
         pass
     elif config['loss_type'] == 'margin':
         y_pred = margin_softmax(y_pred, y_true, config)
@@ -136,7 +140,7 @@ def loss_inference(y_true, y_pred, from_logits=False, label_smoothing=0, config=
 
 #    y_true = smart_cond.smart_cond(label_smoothing,
 #                                       _smooth_labels, lambda: y_true)
-    main_loss = K.categorical_crossentropy(y_true, y_pred)
+    main_loss = K.categorical_crossentropy(y_true, y_pred, True)
 #    main_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=y_pred, labels=y_true)
     # inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_true)
     if config['ce_loss']:
@@ -197,4 +201,14 @@ def margin_softmax(embedding, y_true, config):
     return output
 
 
+@keras_export('keras.metrics.custom_categorical_accuracy')
+def categorical_accuracy(y_true, y_pred):
+  accepted_diff = 0.1
+  diff = math_ops.cast(
+          K.abs(math_ops.argmax(y_true, axis=-1) - math_ops.argmax(y_pred, axis=-1)),
+      K.floatx())
+  return K.mean(K.cast(diff < accepted_diff, tf.float32))
+
+
 LOSS_FUNC = generate_loss_func
+METRICS_FUNC = categorical_accuracy
