@@ -42,9 +42,9 @@ class Trainer:
         def init_model():
             model, embeds = get_model_by_config(config, True)
             if os.path.exists(config["retrain_weights"]):
-                model.load_weights(config["retrain_weights"])
+                model.load_weights(config["retrain_weights"], True)
             if os.path.exists(config["fine_weights"]):
-                model.load_weights(config["fine_weights"])
+                model.load_weights(config["fine_weights"], True)
             return model, embeds
                 # logits = get_call_func(self.train_labels, self.model.output, config)
 
@@ -97,7 +97,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
             with open(os.path.join(config["output_dir"], "step{}_model.json".format(counter)), 'w') as json_file:
                 json_file.write(json_config)
             # Save weights to disk
-            self.model.save_weights(os.path.join(config["output_dir"], "step{}_weights.h5".format(counter)))
+            self.model.save(os.path.join(config["output_dir"], "step{}_weights.h5".format(counter)))
 
         # set test func
         if counter % config["test_interval"] == 0 or counter == 1:
@@ -105,7 +105,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
             with open(config["log"], 'a') as f:
                 f.write('step: %d\n' % counter)
                 for k, v in config["val_data"].items():
-                    acc_mean, acc_std, best_threshold, dist_min, dist_max = test(v, config, self.func)
+                    acc_mean, acc_std, best_threshold, dist_min, dist_max = test(os.path.join("data", config["train_data"], v), config, self.func)
                     print('eval %s. Accuracy-Flip: %1.5f+-%1.5f' % (k, acc_mean, acc_std))
                     print('best threshold %1.5f. distance range (%1.5f-%1.5f)' % (best_threshold, dist_min, dist_max))
                     f.write('eval %s. Accuracy-Flip: %1.5f+-%1.5f' % (k, acc_mean, acc_std))
