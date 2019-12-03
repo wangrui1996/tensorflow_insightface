@@ -256,7 +256,7 @@ def load_bin(path, image_size):
 
 
 def evaluate(embeddings, actual_issame, distance_metric=0, nrof_folds=10):
-    thresholds = np.arange(0, 4, 0.01)
+    thresholds = np.arange(0, 5, 0.01)
 #    if distance_metric == 1:
 #        thresholdes = np.arange(0, 1, 0.0025)
     embeddings1 = embeddings[0::2]
@@ -289,6 +289,7 @@ def test(path, config, func):
     imgs, imgs_f, issame = load_bin(path, config["image_size"])
     embeds_arr = run_embds(func, imgs, config["batch_size"]//config["gpus"])
     embeds_f_arr = run_embds(func, imgs_f, config["batch_size"]//config["gpus"])
+#    embds_arr = embeds_arr + embeds_f_arr
     embds_arr = embeds_arr/np.linalg.norm(embeds_arr, axis=1, keepdims=True)+embeds_f_arr/np.linalg.norm(embeds_f_arr, axis=1, keepdims=True)
     _, _, acc_mean, acc_std, _, _, _, best_threshold, dist_min, dist_max = evaluate(embds_arr, issame, distance_metric=0)
     return acc_mean, acc_std, best_threshold, dist_min, dist_max
