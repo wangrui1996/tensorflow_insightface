@@ -128,7 +128,7 @@ def loss_inference(y_true, y_pred, from_logits=False, label_smoothing=0, config=
     if config['loss_type'] == "softmax":
         pass
     elif config['loss_type'] == 'margin':
-        logits = margin_softmax(y_pred, y_true, config)
+        y_pred = margin_softmax(y_pred, y_true, config)
     else:
         raise ValueError('Invalid loss type.')
     from tensorflow.python.ops import math_ops
@@ -157,49 +157,38 @@ def loss_inference(y_true, y_pred, from_logits=False, label_smoothing=0, config=
         train_loss = main_loss
     return train_loss
 
-
 def margin_softmax(embedding, y_true, config):
     s = config["loss_s"]
-    def mul_s(x):
-        return x*s
-    #nembedding = keras.layers.Lambda(lambda x:  embedding*s)(embedding)
-    nembedding = keras.layers.Lambda(mul_s)(embedding)
-    fc7 = layers.Dense(units=config["class_num"], use_bias=False, kernel_regularizer=K.l2_normalize, name="cos0")(nembedding)
+    from libs.models.network_utils import Matmul
+    fc7 = Matmul(units=config["class_num"], s=s)(embedding)
+    #fc7 = layers.Dense(units=config["class_num"], use_bias=False, kernel_regularizer=K.l2_normalize, name="cos0")(nembedding)
 
     if config["loss_m1"] == 1.0 and config["loss_m2"] == 0.0:
         s_m = s*config["loss_m3"]
-        gt_one_hot = keras.layers.Lambda(
-            lambda label: tf.one_hot(label, depth=config["class_num"], on_value=s_m, off_value=0.0))(y_true)
-        def sub_label(x):
-            return x-gt_one_hot
-        output = keras.layers.Lambda(sub_label)(fc7)
+        gt_one_hot = y_true * s_m
+        output = fc7 - gt_one_hot
     else:
         zy = fc7
-        def div_s(x):
-            return x/s
-        cos_t = keras.layers.Lambda(div_s)(zy)
-        t = keras.layers.Lambda(lambda x: tf.math.acos(x))(cos_t)
+        cos_t = zy/s
+        cos_t = K.clip(cos_t, -1.0 + K.epsilon(), 1.0 - K.epsilon())
+        t = tf.math.acos(cos_t)
         if config["loss_m1"] != 1.0:
-            def mul_m1(x):
-                return x*config["loss_m1"]
-            t = keras.layers.Lambda(mul_m1)(t)
+            t = t * config["loss_m1"]
         if config["loss_m2"] > 0.0:
-            def add_m2(x):
-                return x+config["loss_m2"]
-            t = keras.layers.Lambda(add_m2)(t)
-        body = keras.layers.Lambda(lambda x: K.cos(x))(t)
+            t = t + config["loss_m2"]
+        body = K.cos(t)
         if config["loss_m3"] > 0.0:
-            def sub_m3(x):
-                return x - config["loss_m3"]
-            body = keras.layers.Lambda(sub_m3)(body)
+            body = body - config["loss_m3"]
 
-        new_zy = keras.layers.Lambda(mul_s)(body)
+        new_zy = body * s
+        output = fc7 * (1-y_true) + y_true * new_zy
 
-        bool_one_hot = K.cast(K.reshape(y_true, (-1, config["class_num"])), dtype=tf.bool)
+        #bool_one_hot = K.cast(K.reshape(y_true, (-1, config["class_num"])), dtype=tf.bool)
 
-        output = tf.where(bool_one_hot, new_zy, fc7)
+        #output = tf.where(bool_one_hot, new_zy, fc7)
         print("output shape", output.shape)
         print("finished ..")
+    output = K.softmax(output)
     return output
 
 
