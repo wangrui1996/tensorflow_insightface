@@ -43,8 +43,6 @@ class Trainer:
             model, embeds = get_model_by_config(config, True)
             if os.path.exists(config["retrain_weights"]):
                 model.load_weights(config["retrain_weights"], True)
-            if os.path.exists(config["fine_weights"]):
-                model.load_weights(config["fine_weights"], True)
             return model, embeds
                 # logits = get_call_func(self.train_labels, self.model.output, config)
 
@@ -59,7 +57,11 @@ class Trainer:
         from libs.loss import LOSS_FUNC
         from libs.optimizers import OPTIMIZERS_WAY
         merics = ["acc"] if config["loss_type"] == "softmax" else []
+
+
         self.parallel_model.compile(OPTIMIZERS_WAY(config), loss=LOSS_FUNC(config), metrics=merics)
+        if os.path.exists(config["fine_weights"]):
+            self.parallel_model.load_weights(config["fine_weights"], True)
 
     def train(self):
         config = self.config

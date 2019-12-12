@@ -88,8 +88,8 @@ def get_network(config, is_train=False):
     if config["loss_type"] == "margin":
         return models.Model(img_input, output, name=config["network"]), embeds
     elif config["loss_type"] == "softmax":
-        from libs.models.network_utils import Matmul
-        output = Matmul(config["class_num"])(output)
+        from libs.models.network_utils import IdentityMatrixMul
+        output = IdentityMatrixMul(config["class_num"], l2_inputs=False, l2_weights=True)(output)
         #output = keras.layers.Dense(config['class_num'], use_bias=config["fc7_use_bias"], name="fc7")(output)
         output = keras.layers.Softmax()(output)
         return models.Model(img_input, output, name=config["network"]), embeds

@@ -18,9 +18,10 @@ embed_size: 256
 fc_type: "GDC"
 fc7_use_bias: True
 softmax_layer: "softmax_pred"
-loss_type: margin
+loss_type: softmax
 # arcface
-loss_s: 64.0
+#loss_s: 64.0
+loss_s: 1.0
 loss_m1: 1.0
 loss_m2: 0.5
 loss_m3: 0.0
@@ -31,7 +32,7 @@ dataset_size: 5822653
 
 # train param
 optimizers: sgd
-base_lr: 0.1
+base_lr: 0.001
 epoch_num: 100
 step_per_epoch: 10000
 batch_size: 170
@@ -42,14 +43,16 @@ gpus: 2
 train_data: 'faces_emore'
 
 # set valid dataset
-val_data: {'agedb_30': 'agedb_30.bin'
-  , 'lfw': 'lfw.bin',
-           'cfp_ff': 'cfp_ff.bin', 'cfp_fp': 'cfp_fp.bin',
-           'calfw': 'calfw.bin', 'cplfw': 'cplfw.bin'}
+val_data: {
+        'lfw': 'lfw.bin',
+        'agedb_30': 'agedb_30.bin',
+        #'cfp_ff': 'cfp_ff.bin', 'cfp_fp': 'cfp_fp.bin',
+        #'calfw': 'calfw.bin', 'cplfw': 'cplfw.bin'
+        }
 
 outputs_dir: './output_dir'
 
-fine_weights: "None"
+fine_weights: "/home/rui/work/tensorflow_insightface/output_dir/fmobilefacenet/faces_emore/softmax/20191211-134323/step60000_weights.h5"
 
 
 
