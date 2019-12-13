@@ -147,7 +147,7 @@ def loss_inference(y_true, y_pred, from_logits=False, label_smoothing=0, config=
     # inference_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y_true)
     if config['ce_loss']:
         batch_size = tuple(y_pred.shape.as_list())[0]
-        body = layers.Softmax()(logits)
+        body = layers.Sofmax()(logits)
         body = K.log(body)
         _label = tf.one_hot(y_true, depth=config["class_num"], on_value=-1.0, off_value=0.0)
         body = body * _label

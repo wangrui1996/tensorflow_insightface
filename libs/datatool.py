@@ -412,8 +412,8 @@ class ImageData:
         return dataset.map(self.parse_function, num_parallel_calls=8)
 
     def generator(self, config):
-        from tensorflow.python import keras
-        data_gen = keras.preprocessing.image.ImageDataGenerator()
+        from libs.layers.data_layer import ImageDataGenerator
+        data_gen = ImageDataGenerator()
         return data_gen.flow_from_directory(
             os.path.join("data", config["train_data"], "images"),
             target_size=(config["input_shape"][0], config["input_shape"][1]),

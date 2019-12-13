@@ -59,9 +59,9 @@ class Trainer:
         merics = ["acc"] if config["loss_type"] == "softmax" else []
 
 
-        self.parallel_model.compile(OPTIMIZERS_WAY(config), loss=LOSS_FUNC(config), metrics=merics)
-        if os.path.exists(config["fine_weights"]):
-            self.parallel_model.load_weights(config["fine_weights"], True)
+        self.parallel_model.compile(OPTIMIZERS_WAY(config), loss=keras.losses.categorical_crossentropy, metrics=['acc'])
+#        if os.path.exists(config["fine_weights"]):
+#            self.parallel_model.load_weights(config["fine_weights"], True)
 
     def train(self):
         config = self.config

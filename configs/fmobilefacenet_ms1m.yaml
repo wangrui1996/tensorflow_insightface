@@ -1,7 +1,7 @@
 # use
 network: "fmobilefacenet"
 input_shape: [112,112,3]
-
+label_shape: [85742]
 # batchnorm momenu
 bn_mom: 0.9
 
@@ -18,7 +18,7 @@ embed_size: 256
 fc_type: "GDC"
 fc7_use_bias: True
 softmax_layer: "softmax_pred"
-loss_type: softmax
+loss_type: margin
 # arcface
 #loss_s: 64.0
 loss_s: 1.0
@@ -32,7 +32,7 @@ dataset_size: 5822653
 
 # train param
 optimizers: sgd
-base_lr: 0.001
+base_lr: 0.1
 epoch_num: 100
 step_per_epoch: 10000
 batch_size: 170

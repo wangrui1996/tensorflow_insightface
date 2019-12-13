@@ -54,7 +54,8 @@ from tensorflow.python.keras import regularizers
 def get_network(config, is_train=False):
     blocks = config["net_blocks"]
 
-    img_input = layers.Input(shape=config["input_shape"])
+    img_input = layers.Input(shape=config["input_shape"], name="inputs")
+    label_input = layers.Input(shape=config["label_shape"], name="labels")
     x = Conv(img_input, config, num_filter=64, kernel_size=3, padding="same", stride=2, name="conv_1")
     # 56 x 56 x 64
     if blocks[0] == 1:
@@ -86,12 +87,14 @@ def get_network(config, is_train=False):
         return model
 
     if config["loss_type"] == "margin":
-        return models.Model(img_input, output, name=config["network"]), embeds
+        from libs.layers.margin_layer import Margin
+        logits = Margin(class_num=config['class_num'], s=config['loss_s'], m1=config['loss_m1'], m2=config['loss_m2'], m3=config['loss_m3'])([output, label_input])
+        softmax = keras.layers.Softmax()(logits)
+        return models.Model([img_input, label_input], softmax, name=config["network"]), embeds
     elif config["loss_type"] == "softmax":
-        from libs.models.network_utils import IdentityMatrixMul
-        output = IdentityMatrixMul(config["class_num"], l2_inputs=False, l2_weights=True)(output)
-        #output = keras.layers.Dense(config['class_num'], use_bias=config["fc7_use_bias"], name="fc7")(output)
-        output = keras.layers.Softmax()(output)
+        from libs.layers.softmax_layer import Logits
+        logits = Logits(config["class_num"], normalize_input=False, normalize_weights=True)(output)
+        output = keras.layers.Softmax()(logits)
         return models.Model(img_input, output, name=config["network"]), embeds
     else:
         print("can not find {}".format(config["loss_type"]))
