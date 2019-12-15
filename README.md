@@ -10,8 +10,9 @@ The implementation referred to [the official implementation in mxnet](https://gi
 3. *Model evaluation [done!]*
 4. *convert model to tensorflow-lite [done!]*
 4. *deploy in Android [done!]*
-5. *training fmobilefacenet with mrigin and meet official standards in acc [doing!]*
-6. *reimplementation fmnasnet from official implementation in mxnet [to do]*
+5. *use sqlite dataset save images and train[will down!]*
+6. *training fmobilefacenet with mrigin and meet official standards in acc [doing!]*
+7. *reimplementation fmnasnet from official implementation in mxnet [to do]*
 
 7. Backbones    
    7.1 *fmobilefacenet [done!]*    
