@@ -421,3 +421,5 @@ class ImageData:
             #class_mode="binary",
             #class_mode="sparse",
             batch_size=config["batch_size"])
+
+
