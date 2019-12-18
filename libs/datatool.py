@@ -412,14 +412,21 @@ class ImageData:
         return dataset.map(self.parse_function, num_parallel_calls=8)
 
     def generator(self, config):
-        from libs.layers.data_layer import ImageDataGenerator
-        data_gen = ImageDataGenerator()
-        return data_gen.flow_from_directory(
-            os.path.join("data", config["train_data"], "images"),
-            target_size=(config["input_shape"][0], config["input_shape"][1]),
-            class_mode='categorical',
-            #class_mode="binary",
-            #class_mode="sparse",
-            batch_size=config["batch_size"])
+        if config["sqlite"]:
+            from libs.layers.sqlite_data_layer import SqliteImageDataGenerator
+            data_gen = SqliteImageDataGenerator()
+            return data_gen.flow_from_sqlite_db(
+                os.path.join("data", config["train_data"], "train.db"),
+                target_size = (config["input_shape"][0], config["input_shape"][1]),
+                class_mode = 'categorical',
+                batch_size = config["batch_size"])
+        else:
+            from libs.layers.data_layer import ImageDataGenerator
+            data_gen = ImageDataGenerator()
+            return data_gen.flow_from_directory(
+                os.path.join("data", config["train_data"], "images"),
+                target_size=(config["input_shape"][0], config["input_shape"][1]),
+                class_mode='categorical',
+                batch_size=config["batch_size"])
 
 

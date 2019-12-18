@@ -18,7 +18,7 @@ embed_size: 256
 fc_type: "GDC"
 fc7_use_bias: True
 softmax_layer: "softmax_pred"
-loss_type: margin
+loss_type: softmax
 # arcface
 #loss_s: 64.0
 loss_s: 1.0
@@ -38,7 +38,7 @@ step_per_epoch: 10000
 batch_size: 170
 test_interval: 10000
 snapshot: 10000
-gpus: 2
+gpus: 1
 # set traindata
 train_data: 'faces_emore'
 
@@ -49,7 +49,7 @@ val_data: {
         #'cfp_ff': 'cfp_ff.bin', 'cfp_fp': 'cfp_fp.bin',
         #'calfw': 'calfw.bin', 'cplfw': 'cplfw.bin'
         }
-
+sqlite: True
 outputs_dir: './output_dir'
 
 fine_weights: "/home/rui/work/tensorflow_insightface/output_dir/fmobilefacenet/faces_emore/softmax/20191211-134323/step60000_weights.h5"

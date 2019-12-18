@@ -29,7 +29,6 @@ class Iterator(IteratorType):
         shuffle: Boolean, whether to shuffle the data between epochs.
         seed: Random seeding for data shuffling.
     """
-    white_list_formats = ('png', 'jpg', 'jpeg', 'bmp', 'ppm', 'tif', 'tiff')
 
     def __init__(self, n, batch_size, shuffle, seed):
         self.n = n
@@ -39,6 +38,7 @@ class Iterator(IteratorType):
         self.batch_index = 0
         self.total_batches_seen = 0
         self.lock = threading.Lock()
+        self.sqlite_lock = threading.Lock()
         self.index_array = None
         self.index_generator = self._flow_index()
 
@@ -220,13 +220,21 @@ class BatchFromFilesMixin():
         batch_x = np.zeros((len(index_array),) + self.image_shape, dtype=self.dtype)
         # build batch of image data
         # self.filepaths is dynamic, is better to call it once outside the loop
-        filepaths = self.filepaths
+        cursor = self.cursor
+        classes = []
+        import base64
+        import cv2
         for i, j in enumerate(index_array):
-            img = load_img(filepaths[j],
-                           color_mode=self.color_mode,
-                           target_size=self.target_size,
-                           interpolation=self.interpolation)
-            x = img_to_array(img, data_format=self.data_format)
+            with self.sqlite_lock:
+                cursor.execute('SELECT DATA,LABEL FROM IMAGEDATA WHERE ID = ?', (int(j),))
+                image_data, image_label = cursor.fetchall()[0]
+
+            str_decode = base64.b64decode(image_data)
+            nparr = np.fromstring(str_decode, np.uint8)
+
+            img = cv2.imdecode(buf=nparr, flags=cv2.IMREAD_COLOR)
+            img = cv2.resize(img, self.target_size)
+            x = image.img_to_array(img, data_format=self.data_format)
             # Pillow images should be closed after `load_img`,
             # but not PIL images.
             if hasattr(img, 'close'):
@@ -236,6 +244,7 @@ class BatchFromFilesMixin():
                 x = self.image_data_generator.apply_transform(x, params)
                 x = self.image_data_generator.standardize(x)
             batch_x[i] = x
+            classes.append(int(image_label))
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
             for i, j in enumerate(index_array):
@@ -251,13 +260,13 @@ class BatchFromFilesMixin():
             batch_y = batch_x.copy()
         elif self.class_mode in {'binary', 'sparse'}:
             batch_y = np.empty(len(batch_x), dtype=self.dtype)
-            for i, n_observation in enumerate(index_array):
-                batch_y[i] = self.classes[n_observation]
+            for i, n_observation in enumerate(classes):
+                batch_y[i] = n_observation
         elif self.class_mode == 'categorical':
-            batch_y = np.zeros((len(batch_x), len(self.class_indices)),
+            batch_y = np.zeros((len(batch_x), self.num_classes),
                                dtype=self.dtype)
-            for i, n_observation in enumerate(index_array):
-                batch_y[i, self.classes[n_observation]] = 1.
+            for i, n_observation in enumerate(classes):
+                batch_y[i, classes[i]] = 1.
         elif self.class_mode == 'multi_output':
             batch_y = [output[index_array] for output in self.labels]
         elif self.class_mode == 'raw':
@@ -271,10 +280,10 @@ class BatchFromFilesMixin():
             return {"inputs": batch_x, "labels": batch_y}, batch_y, self.sample_weight[index_array]
 
     @property
-    def filepaths(self):
+    def cursor(self):
         """List of absolute paths to image files"""
         raise NotImplementedError(
-            '`filepaths` property method has not been implemented in {}.'
+            '`cursor` property method has not been implemented in {}.'
             .format(type(self).__name__)
         )
 
@@ -372,9 +381,12 @@ class SqliteIterator(BatchFromFilesMixin, Iterator):
                                                             interpolation)
 
         self.sqlite_db_path = sqlite_db_path
-        conn = db.connect(sqlite_db_path)
+        conn = db.connect(sqlite_db_path, check_same_thread=False)
         cursor = conn.cursor()
-        self.classes = classes
+        cursor.execute("SELECT TOP_NUM,CLASS_NUM  FROM INFODATA")
+        
+        self.samples, self.num_classes = cursor.fetchall()[0]
+        #self.classes = classes
         if class_mode not in self.allowed_class_modes:
             raise ValueError('Invalid class_mode: {}; expected one of: {}'
                              .format(class_mode, self.allowed_class_modes))
@@ -382,42 +394,22 @@ class SqliteIterator(BatchFromFilesMixin, Iterator):
         self.dtype = dtype
         # First, count the number of samples and classes.
 
-        cursor.execute('SELECT ID FROM IMAGEDATA WHERE ID')
-        all_id = cursor.fetchall()
-        self.samples = len(all_id)
-        self.class_indices = dict(zip(classes, range(len(classes))))
-
-
-        pool = multiprocessing.pool.ThreadPool()
-
-        # Second, build an index of the images
-        # in the different class subfolders.
-        results = []
-        self.samples = len(self.filenames)
-        self.classes = np.zeros((self.samples,), dtype='int32')
-        for classes in classes_list:
-            self.classes[i:i + len(classes)] = classes
-            i += len(classes)
 
         print('Found %d images belonging to %d classes.' %
               (self.samples, self.num_classes))
-        pool.close()
-        pool.join()
-        self._filepaths = [
-            os.path.join(self.directory, fname) for fname in self.filenames
-        ]
+        self._cursor = cursor
         super(SqliteIterator, self).__init__(self.samples,
                                                 batch_size,
                                                 shuffle,
                                                 seed)
 
     @property
-    def filepaths(self):
-        return self._filepaths
+    def cursor(self):
+        return self._cursor
 
     @property
     def labels(self):
-        return self.classes
+        return self.num_classes
 
     @property  # mixin needs this property to work
     def sample_weight(self):
@@ -426,7 +418,7 @@ class SqliteIterator(BatchFromFilesMixin, Iterator):
 
 
 @keras_export('keras.image.DataGenerator')
-class ImageDataGenerator(image.ImageDataGenerator):
+class SqliteImageDataGenerator(image.ImageDataGenerator):
   """Generate batches of tensor image data with real-time data augmentation.
 
    The data will be looped over (in batches).
@@ -628,7 +620,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
       if dtype is None:
         dtype = backend.floatx()
       kwargs['dtype'] = dtype
-    super(ImageDataGenerator, self).__init__(
+    super(SqliteImageDataGenerator, self).__init__(
         featurewise_center=featurewise_center,
         samplewise_center=samplewise_center,
         featurewise_std_normalization=featurewise_std_normalization,

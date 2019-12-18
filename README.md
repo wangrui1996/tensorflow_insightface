@@ -39,7 +39,7 @@ fmobilefacenet acc:
 
 |losses|lfw|agedb_30|download url|
 |:----:|:----:|:----:|:----:|
-|Softmax loss|0.9923%|93.78%|[baidu](https://pan.baidu.com/s/1NHkQ3WhvHTotyVnfCX_rJw) 密码: a4fj|
+|Softmax loss|0.9938%|0.9461%|[baidu](https://pan.baidu.com/s/1NHkQ3WhvHTotyVnfCX_rJw) 密码: a4fj|
 |Margin loss|waiting to train|waiting to train||
 |Arcface loss|waiting to train|waiting to train||
 
